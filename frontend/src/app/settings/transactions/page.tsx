@@ -10,11 +10,9 @@ import {
   ArrowLeft,
   Receipt,
   Plus,
-  Minus,
   CreditCard,
   Gift,
   RefreshCw,
-  FileText,
   Calendar,
   Filter
 } from 'lucide-react';
@@ -24,7 +22,7 @@ export default function TransactionsPage() {
   const { user, loading } = useAuth();
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'usage' | 'purchase' | 'subscription' | 'bonus'>('all');
+  const [filter, setFilter] = useState<'all' | 'purchase' | 'subscription' | 'bonus'>('all');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,7 +34,9 @@ export default function TransactionsPage() {
     const fetchTransactions = async () => {
       if (user) {
         const txns = await getCreditTransactions(user.id);
-        setTransactions(txns);
+        // Only keep positive transactions (credits received)
+        const positiveTransactions = txns.filter(t => t.amount > 0);
+        setTransactions(positiveTransactions);
         setLoadingTransactions(false);
       }
     };
@@ -57,7 +57,6 @@ export default function TransactionsPage() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'usage': return FileText;
       case 'purchase': return CreditCard;
       case 'subscription': return RefreshCw;
       case 'bonus': return Gift;
@@ -67,7 +66,6 @@ export default function TransactionsPage() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'usage': return 'bg-red-100 text-red-600';
       case 'purchase': return 'bg-blue-100 text-blue-600';
       case 'subscription': return 'bg-purple-100 text-purple-600';
       case 'bonus': return 'bg-green-100 text-green-600';
@@ -77,7 +75,6 @@ export default function TransactionsPage() {
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'usage': return 'Usage';
       case 'purchase': return 'Purchase';
       case 'subscription': return 'Subscription';
       case 'bonus': return 'Bonus';
@@ -86,21 +83,14 @@ export default function TransactionsPage() {
   };
 
   const filterOptions = [
-    { value: 'all', label: 'All Transactions' },
-    { value: 'usage', label: 'Usage' },
+    { value: 'all', label: 'All' },
     { value: 'purchase', label: 'Purchases' },
     { value: 'subscription', label: 'Subscription' },
     { value: 'bonus', label: 'Bonuses' },
   ];
 
   // Calculate totals
-  const totalEarned = transactions
-    .filter(t => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalUsed = transactions
-    .filter(t => t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const totalEarned = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50/30">
@@ -118,31 +108,20 @@ export default function TransactionsPage() {
 
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
-          <p className="text-gray-600 mt-1">View your credit purchases and usage history</p>
+          <h1 className="text-3xl font-bold text-gray-900">Credit History</h1>
+          <p className="text-gray-600 mt-1">View your credit purchases and bonuses</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
                 <Plus className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Credits Earned</p>
+                <p className="text-sm text-gray-500">Total Credits Received</p>
                 <p className="text-2xl font-bold text-green-600">+{totalEarned}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-                <Minus className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Credits Used</p>
-                <p className="text-2xl font-bold text-red-600">-{totalUsed}</p>
               </div>
             </div>
           </div>
@@ -195,7 +174,7 @@ export default function TransactionsPage() {
               <h3 className="font-semibold text-gray-900 mb-1">No transactions found</h3>
               <p className="text-gray-500 text-sm">
                 {filter === 'all'
-                  ? 'Your transaction history will appear here'
+                  ? 'Your credit history will appear here'
                   : `No ${filter} transactions found`}
               </p>
             </div>
@@ -203,7 +182,6 @@ export default function TransactionsPage() {
             <div className="divide-y divide-gray-100">
               {filteredTransactions.map((transaction) => {
                 const TypeIcon = getTypeIcon(transaction.type);
-                const isPositive = transaction.amount > 0;
 
                 return (
                   <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
@@ -236,8 +214,8 @@ export default function TransactionsPage() {
                       </div>
 
                       {/* Amount */}
-                      <div className={`text-lg font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {isPositive ? '+' : ''}{transaction.amount}
+                      <div className="text-lg font-bold text-green-600">
+                        +{transaction.amount} credits
                       </div>
                     </div>
                   </div>
@@ -250,6 +228,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-
-

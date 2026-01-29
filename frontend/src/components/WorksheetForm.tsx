@@ -11,43 +11,86 @@ import {
   QuestionType,
   Difficulty
 } from '@/lib/types';
-import { getWorksheetCreditCost } from '@/lib/credits';
-import { Sparkles, ChevronDown, ChevronUp, Wand2, Coins } from 'lucide-react';
-import { Modal, useModal } from './Modal';
+import { Sparkles, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
+import { useModal } from '@/components/Modal';
 
 interface WorksheetFormProps {
   onGenerate: (input: WorksheetGeneratorInput) => void;
   isGenerating: boolean;
   initialTopic?: string;
+  // Focus mode props - for practicing mistakes
+  focusMode?: boolean;
+  focusMistakes?: string;
+  initialSubject?: string;
+  initialGradeLevel?: string;
+  initialDifficulty?: string;
+  initialLanguage?: string;
 }
 
-export function WorksheetForm({ onGenerate, isGenerating, initialTopic = '' }: WorksheetFormProps) {
-  const { showError, ModalComponent } = useModal();
+export function WorksheetForm({
+  onGenerate,
+  isGenerating,
+  initialTopic = '',
+  focusMode = false,
+  focusMistakes = '',
+  initialSubject = '',
+  initialGradeLevel = '',
+  initialDifficulty = '',
+  initialLanguage = '',
+}: WorksheetFormProps) {
+  const { showWarning } = useModal();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [formData, setFormData] = useState<WorksheetGeneratorInput>({
     title: '',
     topic: initialTopic,
-    subject: 'math',
-    grade_level: '5',
-    difficulty: 'medium',
-    question_count: 10,
+    subject: initialSubject || 'math',
+    grade_level: initialGradeLevel || '5',
+    difficulty: (initialDifficulty as Difficulty) || 'medium',
+    question_count: focusMode ? 10 : 10, // Default 10 for focus mode
     question_types: ['multiple_choice'],
-    language: 'en',
+    language: initialLanguage || 'en',
     include_answer_key: true,
-    additional_instructions: '',
+    additional_instructions: focusMode
+      ? `FOCUS MODE: Generate questions similar to these that the student got wrong:\n${focusMistakes}\n\nCreate questions that test the same concepts but with different numbers/variations.`
+      : '',
   });
 
-  // Update topic when initialTopic changes
+  // Update form when initial values change
   useEffect(() => {
     if (initialTopic) {
       setFormData(prev => ({ ...prev, topic: initialTopic }));
     }
   }, [initialTopic]);
 
+  // Set initial values for focus mode
+  useEffect(() => {
+    if (focusMode && initialTopic) {
+      setFormData(prev => ({
+        ...prev,
+        topic: initialTopic,
+        subject: initialSubject || prev.subject,
+        grade_level: initialGradeLevel || prev.grade_level,
+        difficulty: (initialDifficulty as Difficulty) || prev.difficulty,
+        language: initialLanguage || prev.language,
+        additional_instructions: `🎯 FOCUS MODE - PRACTICE MISTAKES:
+The student got the following questions wrong and needs more practice on these concepts:
+
+${focusMistakes}
+
+INSTRUCTIONS:
+1. Generate NEW questions that test the SAME concepts as the mistakes above
+2. Use different numbers, examples, or scenarios
+3. Keep the same difficulty level but vary the approach
+4. Focus on helping the student understand where they went wrong
+5. Include helpful hints or step-by-step explanations in the answers`,
+      }));
+    }
+  }, [focusMode, initialTopic, initialSubject, initialGradeLevel, initialDifficulty, initialLanguage, focusMistakes]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.topic.trim()) {
-      showError('Please enter a topic', 'Missing Topic');
+      showWarning('Please enter a topic to generate your worksheet.', 'Topic Required');
       return;
     }
     onGenerate(formData);
@@ -249,27 +292,25 @@ export function WorksheetForm({ onGenerate, isGenerating, initialTopic = '' }: W
         </div>
       )}
 
-      {/* Credit Cost Display */}
-      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
-        <Coins className="w-5 h-5 text-amber-600" />
-        <span className="text-amber-800 font-medium">
-          This worksheet will cost{' '}
-          <span className="font-bold text-amber-900">
-            {getWorksheetCreditCost(formData.subject, formData.topic, formData.question_count)} credit{getWorksheetCreditCost(formData.subject, formData.topic, formData.question_count) > 1 ? 's' : ''}
-          </span>
-        </span>
-      </div>
-
       {/* Submit Button */}
       <button
         type="submit"
         disabled={isGenerating || !formData.topic.trim()}
-        className="w-full btn-primary py-5 text-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
+        className={`w-full py-5 text-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group rounded-xl font-bold text-white shadow-lg transition-all ${
+          focusMode
+            ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-orange-200'
+            : 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-teal-200'
+        }`}
       >
         {isGenerating ? (
           <>
             <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
             <span>Generating your worksheet...</span>
+          </>
+        ) : focusMode ? (
+          <>
+            <Wand2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+            <span>Generate Practice Worksheet</span>
           </>
         ) : (
           <>
@@ -278,7 +319,6 @@ export function WorksheetForm({ onGenerate, isGenerating, initialTopic = '' }: W
           </>
         )}
       </button>
-      {ModalComponent}
     </form>
   );
 }

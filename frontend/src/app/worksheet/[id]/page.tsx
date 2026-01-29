@@ -7,16 +7,16 @@ import { Header } from '@/components/Header';
 import { WorksheetPreview } from '@/components/WorksheetPreview';
 import { Worksheet, Question } from '@/lib/types';
 import { getWorksheet, saveWorksheet } from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
 import { ArrowLeft, Play, Share2, FileText, Download, Sparkles } from 'lucide-react';
 import { exportToPdf, exportToHtml } from '@/lib/export';
-import { useAuth } from '@/lib/AuthContext';
 import { useModal } from '@/components/Modal';
 
 function WorksheetDetailContent() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useAuth();
-  const { showSuccess, showError, ModalComponent } = useModal();
+  const { showSuccess } = useModal();
 
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ function WorksheetDetailContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header isLoggedIn={true} />
+      <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
@@ -159,13 +159,9 @@ function WorksheetDetailContent() {
               <h3 className="font-bold text-gray-800 mb-4">Export & Share</h3>
               <div className="space-y-3">
                 <button
-                  onClick={async () => {
+                  onClick={() => {
                     if (worksheet) {
-                      try {
-                        await exportToPdf(worksheet);
-                      } catch (err) {
-                        showError(err instanceof Error ? err.message : 'PDF export failed', 'Export Error');
-                      }
+                      exportToPdf(worksheet);
                     }
                   }}
                   className="w-full btn-secondary flex items-center justify-center gap-2"
@@ -238,7 +234,6 @@ function WorksheetDetailContent() {
           </div>
         </div>
       </main>
-      {ModalComponent}
     </div>
   );
 }

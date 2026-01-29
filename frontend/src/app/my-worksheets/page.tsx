@@ -7,9 +7,15 @@ import { Header } from '@/components/Header';
 import { Worksheet } from '@/lib/types';
 import { fetchWorksheets, deleteWorksheet } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
-import { Search, FileText, Trash2, Eye, Play, Plus, Download, Trophy, ChevronDown } from 'lucide-react';
+import { Search, FileText, Trash2, Eye, Play, Plus, Download, Trophy, ChevronDown, Target } from 'lucide-react';
 import { exportToHtml, exportToPdf } from '@/lib/export';
 import { useModal } from '@/components/Modal';
+
+interface IncorrectQuestion {
+  question: string;
+  type: string;
+  correctAnswer: string;
+}
 
 interface QuizResult {
   score: number;
@@ -17,6 +23,7 @@ interface QuizResult {
   total: number;
   timeTaken: number;
   completedAt: string;
+  incorrectQuestions?: IncorrectQuestion[];
 }
 
 interface QuizResults {
@@ -26,7 +33,7 @@ interface QuizResults {
 export default function MyWorksheetsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { showError, confirm, ModalComponent } = useModal();
+  const { showConfirm, showError } = useModal();
   const [worksheets, setWorksheets] = useState<Worksheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,18 +99,20 @@ export default function MyWorksheetsPage() {
   };
 
   const handleDelete = (id: string) => {
-    confirm(
+    showConfirm(
       'Are you sure you want to delete this worksheet? This action cannot be undone.',
       async () => {
         try {
           await deleteWorksheet(id, user?.id);
           setWorksheets(prev => prev.filter(ws => ws.id !== id));
         } catch (err) {
-          setError('Failed to delete worksheet.');
+          showError('Failed to delete worksheet.');
           console.error(err);
         }
       },
-      'Delete Worksheet'
+      'Delete Worksheet',
+      'Delete',
+      'Cancel'
     );
   };
 
@@ -112,12 +121,37 @@ export default function MyWorksheetsPage() {
     setExportDropdownId(null);
   };
 
-  const handleExportPdf = async (worksheet: Worksheet, content: 'questions' | 'answer_key' | 'both') => {
-    try {
-      await exportToPdf(worksheet, content);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'PDF export failed', 'Export Error');
-    }
+  const handlePracticeMistakes = (worksheet: Worksheet) => {
+    const quizResult = quizResults[worksheet.id];
+    if (!quizResult?.incorrectQuestions?.length) return;
+
+    // Build a focused practice prompt from incorrect questions
+    const mistakesSummary = quizResult.incorrectQuestions
+      .map(q => `${q.question.substring(0, 80)} (Type: ${q.type})`)
+      .join('; ');
+
+    // Get question types from mistakes
+    const mistakeTypes = [...new Set(quizResult.incorrectQuestions.map(q => q.type))];
+
+    // Navigate to generator with pre-filled data
+    const params = new URLSearchParams({
+      subject: worksheet.subject,
+      topic: `Practice: ${worksheet.topic} - Focus on Mistakes`,
+      grade_level: worksheet.grade_level,
+      difficulty: worksheet.difficulty,
+      language: worksheet.language,
+      focus_mode: 'mistakes',
+      mistakes: mistakesSummary.substring(0, 800),
+      mistake_count: quizResult.incorrectQuestions.length.toString(),
+      mistake_types: mistakeTypes.join(','),
+      original_worksheet_id: worksheet.id,
+    });
+
+    router.push(`/generator?${params.toString()}`);
+  };
+
+  const handleExportPdf = (worksheet: Worksheet, content: 'questions' | 'answer_key' | 'both') => {
+    exportToPdf(worksheet, content);
     setExportDropdownId(null);
   };
 
@@ -257,6 +291,17 @@ export default function MyWorksheetsPage() {
                   </div>
                 )}
 
+                {/* Practice Mistakes Button - Show only if there are wrong answers */}
+                {quizResults[ws.id]?.incorrectQuestions && quizResults[ws.id].incorrectQuestions!.length > 0 && (
+                  <button
+                    onClick={() => handlePracticeMistakes(ws)}
+                    className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md"
+                  >
+                    <Target className="w-4 h-4" />
+                    Practice {quizResults[ws.id].incorrectQuestions!.length} Mistakes
+                  </button>
+                )}
+
                 <div className="text-xs text-gray-400 mb-4">
                   Created: {new Date(ws.created_at).toLocaleDateString()}
                 </div>
@@ -340,7 +385,6 @@ export default function MyWorksheetsPage() {
           </div>
         )}
       </main>
-      {ModalComponent}
     </div>
   );
 }

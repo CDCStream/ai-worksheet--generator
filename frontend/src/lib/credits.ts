@@ -98,19 +98,19 @@ export const CREDIT_PACKS: CreditPack[] = [
     priceId: 'credits_40',
   },
   {
-    credits: 70,
+    credits: 80,
     price: 6.99,
-    priceId: 'credits_70',
+    priceId: 'credits_80',
   },
   {
-    credits: 150,
+    credits: 200,
     price: 16.99,
-    priceId: 'credits_150',
+    priceId: 'credits_200',
   },
   {
-    credits: 300,
+    credits: 400,
     price: 32.99,
-    priceId: 'credits_300',
+    priceId: 'credits_400',
   },
 ];
 
@@ -246,33 +246,8 @@ export async function addCredits(userId: string, amount: number, type: 'purchase
   }
 }
 
-// Check if topic/subject requires diagrams (more expensive)
-function needsDiagrams(subject: string, topic: string): boolean {
-  const subjectLower = subject.toLowerCase();
-  const topicLower = topic.toLowerCase();
-
-  const diagramSubjects = ['geometry', 'math', 'mathematics', 'trigonometry', 'physics', 'science', 'electronics', 'electrical'];
-  const diagramTopics = ['triangle', 'circle', 'angle', 'polygon', 'shape', 'circuit', 'resistor', 'voltage', 'current', 'ohm', 'force', 'vector', 'motion', 'projectile', 'sine', 'cosine', 'tangent', 'pythagor', 'area', 'perimeter', 'volume', 'coordinate'];
-
-  for (const s of diagramSubjects) {
-    if (subjectLower.includes(s)) return true;
-  }
-  for (const t of diagramTopics) {
-    if (topicLower.includes(t)) return true;
-  }
-  return false;
-}
-
-export function getWorksheetCreditCost(subject: string = '', topic: string = '', questionCount: number = 10): number {
-  // Base cost: 1 for normal, 2 for diagram-required topics
-  let baseCost = needsDiagrams(subject, topic) ? 2 : 1;
-
-  // Double cost for worksheets with more than 15 questions
-  if (questionCount > 15) {
-    baseCost = baseCost * 2;
-  }
-
-  return baseCost;
+export function getWorksheetCreditCost(): number {
+  return 1; // Each worksheet costs 1 credit
 }
 
 export async function getCreditTransactions(userId: string): Promise<CreditTransaction[]> {

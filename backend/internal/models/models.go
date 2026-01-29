@@ -10,6 +10,7 @@ const (
 	MultipleChoice QuestionType = "multiple_choice"
 	FillBlank      QuestionType = "fill_blank"
 	TrueFalse      QuestionType = "true_false"
+	Matching       QuestionType = "matching"
 	ShortAnswer    QuestionType = "short_answer"
 	Essay          QuestionType = "essay"
 )
@@ -35,7 +36,6 @@ type Question struct {
 	Explanation   string      `json:"explanation,omitempty"`
 	Points        int         `json:"points"`
 	Image         string      `json:"image,omitempty"`
-	LatexDiagram  string      `json:"latex_diagram,omitempty"`
 }
 
 

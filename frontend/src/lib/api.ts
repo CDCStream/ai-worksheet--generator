@@ -17,21 +17,9 @@ function distributePoints(questions: Question[]): Question[] {
   }));
 }
 
-// Progress callback type
-type ProgressCallback = (step: number, message: string) => void;
-
-// Generate worksheet using AI with streaming progress
-export async function generateWorksheet(
-  input: WorksheetGeneratorInput,
-  userId?: string,
-  onProgress?: ProgressCallback
-): Promise<Worksheet> {
+// Generate worksheet using AI
+export async function generateWorksheet(input: WorksheetGeneratorInput, userId?: string): Promise<Worksheet> {
   try {
-    // Use streaming endpoint if progress callback is provided
-    if (onProgress) {
-      return await generateWorksheetWithProgress(input, userId, onProgress);
-    }
-
     const response = await fetch(`${API_URL}/api/worksheets/generate`, {
       method: 'POST',
       headers: {
@@ -78,134 +66,11 @@ export async function generateWorksheet(
   }
 }
 
-// Generate worksheet with streaming progress updates
-async function generateWorksheetWithProgress(
-  input: WorksheetGeneratorInput,
-  userId: string | undefined,
-  onProgress: ProgressCallback
-): Promise<Worksheet> {
-  console.log('🚀 Starting SSE generation...');
-
-  return new Promise((resolve, reject) => {
-    const controller = new AbortController();
-
-    fetch(`${API_URL}/api/worksheets/generate-stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(input),
-      signal: controller.signal,
-    }).then(async (response) => {
-      console.log('🚀 SSE Response received, status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        reject(new Error(errorData.error || 'Failed to generate worksheet'));
-        return;
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        reject(new Error('No response body'));
-        return;
-      }
-
-      console.log('🚀 Starting to read SSE stream...');
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let currentEventType = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          // Capture event type
-          if (line.startsWith('event: ')) {
-            currentEventType = line.slice(7).trim();
-            continue;
-          }
-
-          // Handle data lines
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-
-            try {
-              const data = JSON.parse(dataStr);
-
-              // Handle different event types
-              if (currentEventType === 'progress' && data.step !== undefined) {
-                onProgress(data.step, data.message);
-              }
-              else if (currentEventType === 'error') {
-                reject(new Error(data.message || 'Generation failed'));
-                return;
-              }
-              else if (currentEventType === 'complete') {
-                console.log('🚀 Complete event received!', { hasWorksheet: !!data.worksheet, hasId: !!data.id });
-                // Handle both wrapped {success, worksheet} and direct worksheet formats
-                const worksheet = data.worksheet || (data.id ? data : null);
-
-                if (worksheet && worksheet.id) {
-                  const worksheetWithPoints = {
-                    ...worksheet,
-                    questions: distributePoints(worksheet.questions)
-                  };
-
-                  // Save to Supabase if user is logged in
-                  if (userId) {
-                    try {
-                      await saveWorksheetToSupabase(worksheetWithPoints, userId);
-                    } catch (err) {
-                      console.error('Failed to save to Supabase:', err);
-                      saveWorksheetToLocal(worksheetWithPoints);
-                    }
-                  } else {
-                    saveWorksheetToLocal(worksheetWithPoints);
-                  }
-
-                  resolve(worksheetWithPoints);
-                  return;
-                } else if (data.error) {
-                  reject(new Error(data.error));
-                  return;
-                }
-              }
-            } catch (e) {
-              // Ignore JSON parse errors for partial data
-              console.debug('SSE parse skip:', dataStr.substring(0, 50));
-            }
-
-            // Reset event type after processing
-            currentEventType = '';
-          }
-        }
-      }
-
-      reject(new Error('Stream ended without result'));
-    }).catch(reject);
-  });
-}
-
 // Save worksheet to Supabase
 async function saveWorksheetToSupabase(worksheet: Worksheet, userId: string): Promise<void> {
   const supabase = getSupabase();
 
-  // Debug: Log what we're trying to save
-  console.log('📝 Saving worksheet to Supabase:', {
-    id: worksheet.id,
-    userId: userId,
-    title: worksheet.title,
-    questionCount: worksheet.questions?.length,
-    hasImages: worksheet.questions?.some(q => q.image) || false
-  });
-
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('worksheets')
     .upsert({
       id: worksheet.id,
@@ -218,24 +83,15 @@ async function saveWorksheetToSupabase(worksheet: Worksheet, userId: string): Pr
       language: worksheet.language,
       questions: worksheet.questions,
       include_answer_key: worksheet.include_answer_key,
-      additional_instructions: worksheet.additional_instructions || '',
+      additional_instructions: worksheet.additional_instructions,
       status: worksheet.status || 'draft',
       downloads: worksheet.downloads || 0,
-      created_at: worksheet.created_at || new Date().toISOString(),
+      created_at: worksheet.created_at,
       updated_at: new Date().toISOString(),
-    })
-    .select();
-
-  console.log('📝 Supabase response:', { data, error });
+    });
 
   if (error) {
-    console.error('Error saving worksheet to Supabase:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-      full: JSON.stringify(error)
-    });
+    console.error('Error saving worksheet to Supabase:', error);
     throw error;
   }
 }
@@ -348,6 +204,15 @@ function generateDemoQuestion(num: number, type: QuestionType, topic: string): Q
         question: `Question ${num}: Briefly explain the importance of ${topic}.`,
         correct_answer: 'Sample answer explaining the importance...',
         explanation: 'A good answer should include key points about the topic.',
+      };
+    case 'matching':
+      return {
+        ...baseQuestion,
+        question: `Question ${num}: Match the following terms related to ${topic}:`,
+        options: ['Term A → Definition 1', 'Term B → Definition 2', 'Term C → Definition 3'],
+        correct_answer: ['A-1', 'B-2', 'C-3'],
+        explanation: 'Match each term with its correct definition.',
+        points: 3,
       };
     case 'essay':
       return {
@@ -539,4 +404,28 @@ function getDemoWorksheets(): Worksheet[] {
 // Export worksheet as PDF (triggers print dialog)
 export function exportWorksheetPDF(worksheet: Worksheet): void {
   window.print();
+}
+
+// Send welcome email to new user
+export async function sendWelcomeEmail(email: string, name?: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/api/email/welcome`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, name: name || '' }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send welcome email');
+      return false;
+    }
+
+    console.log('✅ Welcome email sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+    return false;
+  }
 }

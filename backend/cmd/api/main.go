@@ -48,6 +48,7 @@ func main() {
 	// Initialize handlers
 	worksheetHandler := handlers.NewWorksheetHandler(generator)
 	authHandler := handlers.NewAuthHandler()
+	emailHandler := handlers.NewEmailHandler()
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -87,13 +88,16 @@ func main() {
 	// Worksheet routes
 	worksheets := api.Group("/worksheets")
 	worksheets.Post("/generate", worksheetHandler.GenerateWorksheet)
-	worksheets.Post("/generate-stream", worksheetHandler.GenerateWorksheetStream)
 	worksheets.Get("/", worksheetHandler.GetWorksheets)
 	worksheets.Get("/options", worksheetHandler.GetOptions)
 	worksheets.Get("/:id", worksheetHandler.GetWorksheet)
 	worksheets.Put("/:id", worksheetHandler.UpdateWorksheet)
 	worksheets.Delete("/:id", worksheetHandler.DeleteWorksheet)
 	worksheets.Get("/:id/export/pdf", worksheetHandler.ExportWorksheetPDF)
+
+	// Email routes
+	emailRoutes := api.Group("/email")
+	emailRoutes.Post("/welcome", emailHandler.SendWelcomeEmail)
 
 	// Start server
 	log.Fatal(app.Listen(":" + port))

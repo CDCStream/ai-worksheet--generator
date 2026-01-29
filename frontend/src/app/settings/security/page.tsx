@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/lib/supabase';
 import {
   ArrowLeft,
   Shield,
   Key,
-  Smartphone,
   Mail,
   CheckCircle,
   AlertCircle,
@@ -53,12 +53,23 @@ export default function SecurityPage() {
 
     setChangingPassword(true);
 
-    // Simulate API call - in production, this would call Supabase's updateUser
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
+
+      if (error) {
+        setPasswordMessage({ type: 'error', text: error.message });
+      } else {
+        setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      }
+    } catch (err) {
+      setPasswordMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      console.error(err);
+    } finally {
       setChangingPassword(false);
-      setPasswordMessage({ type: 'success', text: 'Password updated successfully' });
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    }, 1500);
+    }
   };
 
   if (loading || !user) {
@@ -225,32 +236,6 @@ export default function SecurityPage() {
           )}
         </div>
 
-        {/* Two-Factor Auth (Coming Soon) */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 opacity-75">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Smartphone className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded">
-                  Coming Soon
-                </span>
-              </div>
-              <p className="text-gray-500 mt-1">
-                Add an extra layer of security to your account with two-factor authentication
-              </p>
-            </div>
-            <button
-              disabled
-              className="px-4 py-2 bg-gray-100 text-gray-400 font-semibold rounded-xl cursor-not-allowed"
-            >
-              Enable
-            </button>
-          </div>
-        </div>
-
         {/* Login Activity (Coming Soon) */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mt-6 opacity-75">
           <div className="flex items-center gap-2 mb-4">
@@ -268,6 +253,7 @@ export default function SecurityPage() {
     </div>
   );
 }
+
 
 
 

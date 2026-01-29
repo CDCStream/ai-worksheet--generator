@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { sendWelcomeEmail } from './api';
 
 interface AuthContextType {
   user: User | null;
@@ -30,10 +31,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Send welcome email for new users (first sign in)
+      if (event === 'SIGNED_IN' && session?.user) {
+        const user = session.user;
+        const createdAt = new Date(user.created_at);
+        const now = new Date();
+        const timeDiff = now.getTime() - createdAt.getTime();
+        const isNewUser = timeDiff < 60000; // Within 1 minute of creation
+
+        // Check if we already sent welcome email (stored in localStorage)
+        const welcomeEmailSent = localStorage.getItem(`welcome_email_sent_${user.id}`);
+
+        if (isNewUser && !welcomeEmailSent) {
+          const userName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+          await sendWelcomeEmail(user.email || '', userName);
+          localStorage.setItem(`welcome_email_sent_${user.id}`, 'true');
+        }
+      }
     });
 
     return () => subscription.unsubscribe();

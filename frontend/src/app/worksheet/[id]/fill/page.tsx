@@ -4,11 +4,11 @@ import { useState, useEffect, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
+import { LatexRenderer } from '@/components/LatexRenderer';
 import { Worksheet, Question } from '@/lib/types';
 import { getWorksheet } from '@/lib/api';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Send, RotateCcw, Trophy, Printer, Share2, Play, AlertTriangle } from 'lucide-react';
-import { LatexRenderer } from '@/components/LatexRenderer';
 import { useAuth } from '@/lib/AuthContext';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Send, RotateCcw, Trophy, Printer, Share2, Play, AlertTriangle } from 'lucide-react';
 import { useModal } from '@/components/Modal';
 
 interface Answers {
@@ -28,7 +28,7 @@ function WorksheetFillContent() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useAuth();
-  const { showSuccess, ModalComponent } = useModal();
+  const { showSuccess } = useModal();
 
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,15 +52,6 @@ function WorksheetFillContent() {
       try {
         const data = await getWorksheet(id, user?.id);
         if (data) {
-          // Debug: Check if images are present
-          console.log('📊 Loaded worksheet:', data.id);
-          console.log('📊 Questions with images:', data.questions?.filter(q => q.image).length || 0);
-          data.questions?.forEach((q, i) => {
-            if (q.image) {
-              console.log(`📊 Q${i+1} image (first 100 chars):`, q.image.substring(0, 100));
-            }
-          });
-
           setWorksheet(data);
         } else {
           setError('Worksheet not found');
@@ -162,7 +153,7 @@ function WorksheetFillContent() {
   };
 
   // Save quiz result to localStorage
-  const saveQuizResult = (worksheetId: string, points: number, correct: number, total: number, timeTaken: number) => {
+  const saveQuizResult = (worksheetId: string, points: number, correct: number, total: number, timeTaken: number, incorrectQuestions: { question: string; type: string; correctAnswer: string }[]) => {
     const quizResults = JSON.parse(localStorage.getItem('quizResults') || '{}');
     quizResults[worksheetId] = {
       score: points,
@@ -170,6 +161,7 @@ function WorksheetFillContent() {
       total,
       timeTaken,
       completedAt: new Date().toISOString(),
+      incorrectQuestions, // Store details of wrong answers for focused practice
     };
     localStorage.setItem('quizResults', JSON.stringify(quizResults));
   };
@@ -182,19 +174,27 @@ function WorksheetFillContent() {
     let correct = 0;
     const totalQuestions = worksheet.questions.length;
     const pointsPerQuestion = 100 / totalQuestions;
+    const incorrectQuestions: { question: string; type: string; correctAnswer: string }[] = [];
 
     worksheet.questions.forEach(q => {
       const userAnswer = answers[q.id];
       if (checkAnswer(q, userAnswer)) {
         correct++;
+      } else {
+        // Track incorrect questions for focused practice
+        incorrectQuestions.push({
+          question: q.question,
+          type: q.type,
+          correctAnswer: Array.isArray(q.correct_answer) ? q.correct_answer.join(', ') : (q.correct_answer || ''),
+        });
       }
     });
 
     // Calculate score out of 100
     const points = Math.round(correct * pointsPerQuestion);
 
-    // Save result to localStorage
-    saveQuizResult(worksheet.id, points, correct, totalQuestions, timeElapsed);
+    // Save result to localStorage with incorrect questions
+    saveQuizResult(worksheet.id, points, correct, totalQuestions, timeElapsed, incorrectQuestions);
 
     setScore({
       correct,
@@ -212,19 +212,27 @@ function WorksheetFillContent() {
     let correct = 0;
     const totalQuestions = worksheet.questions.length;
     const pointsPerQuestion = 100 / totalQuestions;
+    const incorrectQuestions: { question: string; type: string; correctAnswer: string }[] = [];
 
     worksheet.questions.forEach(q => {
       const userAnswer = answers[q.id];
       if (checkAnswer(q, userAnswer)) {
         correct++;
+      } else {
+        // Track incorrect questions for focused practice
+        incorrectQuestions.push({
+          question: q.question,
+          type: q.type,
+          correctAnswer: Array.isArray(q.correct_answer) ? q.correct_answer.join(', ') : (q.correct_answer || ''),
+        });
       }
     });
 
     // Calculate score out of 100
     const points = Math.round(correct * pointsPerQuestion);
 
-    // Save result to localStorage
-    saveQuizResult(worksheet.id, points, correct, totalQuestions, timeElapsed);
+    // Save result to localStorage with incorrect questions
+    saveQuizResult(worksheet.id, points, correct, totalQuestions, timeElapsed, incorrectQuestions);
 
     setScore({
       correct,
@@ -352,7 +360,7 @@ function WorksheetFillContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header isLoggedIn={true} />
+      <Header />
 
       {/* Timer Selection Modal */}
       {showTimerModal && !submitted && (
@@ -532,32 +540,19 @@ function WorksheetFillContent() {
 
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-3">
-                        <p className="font-medium text-gray-900">
-                          <LatexRenderer text={question.question} />
-                        </p>
+                        <p className="font-medium text-gray-900"><LatexRenderer text={question.question} /></p>
                         <span className="text-sm text-blue-600 font-medium ml-4">
                           {Math.round(100 / worksheet.questions.length)} pts
                         </span>
                       </div>
 
-                      {/* Question Image (SVG or URL) */}
-                      {question.image && console.log(`🖼️ Q${index+1} has image:`, question.image.substring(0, 50))}
-                      {question.image && (
-                        <div className="mb-4 flex justify-center bg-gray-50 p-2 rounded-lg border">
-                          {question.image.trim().startsWith('<svg') ? (
-                            <div
-                              dangerouslySetInnerHTML={{ __html: question.image }}
-                              className="svg-diagram"
-                              style={{ width: '280px', height: '200px' }}
-                            />
-                          ) : (
-                            <img
-                              src={question.image}
-                              alt="Question diagram"
-                              className="max-w-full h-auto rounded-lg shadow-md"
-                              style={{ maxWidth: '280px', maxHeight: '180px' }}
-                            />
-                          )}
+                      {/* Question Image - Only show valid SVG */}
+                      {question.image && question.image.trim().startsWith('<svg') && (
+                        <div className="mb-4 flex justify-center">
+                          <div
+                            className="max-w-full h-auto rounded-xl shadow-md max-h-48 overflow-hidden bg-white p-2"
+                            dangerouslySetInnerHTML={{ __html: question.image }}
+                          />
                         </div>
                       )}
 
@@ -588,9 +583,7 @@ function WorksheetFillContent() {
                                 disabled={submitted}
                                 className="w-4 h-4 text-blue-600"
                               />
-                              <span className="text-gray-700">
-                                <LatexRenderer text={option} />
-                              </span>
+                              <span className="text-gray-700"><LatexRenderer text={option} /></span>
                               {submitted && userAnswer === option && (
                                 isCorrect
                                   ? <CheckCircle className="w-4 h-4 text-green-600 ml-auto" />
@@ -664,9 +657,9 @@ function WorksheetFillContent() {
                               </p>
                               <p className="text-gray-700 mt-1">
                                 <span className="font-medium">Answer:</span>{' '}
-                                <LatexRenderer text={Array.isArray(question.correct_answer)
+                                {Array.isArray(question.correct_answer)
                                   ? question.correct_answer.join(', ')
-                                  : String(question.correct_answer || '')} />
+                                  : question.correct_answer}
                               </p>
                               {question.explanation && (
                                 <p className="text-sm text-gray-600 mt-2 italic">
@@ -799,21 +792,20 @@ function WorksheetFillContent() {
                       </span>
                       <div className="flex-1">
                         <p className="font-medium text-gray-800 mb-2">
-                          <span className="text-gray-500">{index + 1}.</span>{' '}
-                          <LatexRenderer text={question.question} />
+                          <span className="text-gray-500">{index + 1}.</span> <LatexRenderer text={question.question} />
                         </p>
 
                         {userAnswer && (
                           <p className={`text-sm mb-1 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                            <strong>Your answer:</strong> <LatexRenderer text={userAnswer} />
+                            <strong>Your answer:</strong> {userAnswer}
                           </p>
                         )}
 
                         <p className="text-sm text-emerald-700 font-semibold">
                           <strong>Correct answer:</strong>{' '}
-                          <LatexRenderer text={Array.isArray(question.correct_answer)
+                          {Array.isArray(question.correct_answer)
                             ? question.correct_answer.join(', ')
-                            : String(question.correct_answer || '')} />
+                            : question.correct_answer}
                         </p>
 
                         {question.explanation && (
@@ -830,7 +822,6 @@ function WorksheetFillContent() {
           </div>
         )}
       </main>
-      {ModalComponent}
     </div>
   );
 }

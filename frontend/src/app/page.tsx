@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
-import { Sparkles, FileText, Clock, Users, Zap, Globe, ArrowRight, Check, BookOpen, PenTool, Lightbulb } from 'lucide-react';
+import { Sparkles, FileText, Clock, Users, Zap, Globe, ArrowRight, Check, BookOpen, PenTool, Lightbulb, Target } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -29,20 +29,32 @@ export default function Home() {
     {
       icon: <FileText className="w-8 h-8" />,
       title: 'Multiple Formats',
-      description: 'MCQ, fill-in-blank, true/false, short answer, and essay question types.',
+      description: 'MCQ, fill-in-blank, essays, matching, and more question types.',
       color: 'bg-amber-100 text-amber-600',
     },
     {
-      icon: <Clock className="w-8 h-8" />,
-      title: 'Save Hours',
-      description: 'Create professional worksheets in seconds, not hours.',
+      icon: <Lightbulb className="w-8 h-8" />,
+      title: "Bloom's Taxonomy",
+      description: 'Questions aligned with cognitive levels from Remember to Create.',
       color: 'bg-purple-100 text-purple-600',
+    },
+    {
+      icon: <Target className="w-8 h-8" />,
+      title: 'Focus on Mistakes',
+      description: 'AI analyzes wrong answers and creates targeted practice worksheets.',
+      color: 'bg-orange-100 text-orange-600',
     },
     {
       icon: <Globe className="w-8 h-8" />,
       title: '40+ Languages',
       description: 'Generate worksheets in any language your students need.',
       color: 'bg-rose-100 text-rose-600',
+    },
+    {
+      icon: <Clock className="w-8 h-8" />,
+      title: 'Save Hours',
+      description: 'Create professional worksheets in seconds, not hours.',
+      color: 'bg-cyan-100 text-cyan-600',
     },
   ];
 
@@ -158,6 +170,13 @@ export default function Home() {
           </div>
 
           {/* Feature badges - 45 degree angle */}
+          <div className="absolute left-[8%] top-[75%] hidden lg:block" style={{ transform: 'rotate(-45deg)' }}>
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg">
+              <span className="text-lg">📐</span>
+              <span className="text-white font-semibold text-sm whitespace-nowrap">LaTeX & TikZ Support</span>
+            </div>
+          </div>
+
           <div className="absolute right-[8%] top-[75%] hidden lg:block" style={{ transform: 'rotate(45deg)' }}>
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg">
               <span className="text-lg">🖼️</span>
@@ -265,7 +284,7 @@ export default function Home() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {features.map((feature, index) => (
                 <div
                   key={index}
@@ -373,6 +392,98 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Focus on Mistakes Feature Section */}
+        <section className="py-20 bg-gradient-to-br from-orange-50 via-amber-50 to-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full text-sm font-semibold mb-6">
+                  <Target className="w-4 h-4" />
+                  New Feature
+                </div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-6">
+                  Focus on Your
+                  <span className="text-orange-600"> Mistakes</span>
+                </h2>
+                <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                  When students take a quiz and make mistakes, our AI remembers exactly where they struggled.
+                  With one click, generate a personalized practice worksheet that focuses specifically on those weak areas.
+                </p>
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <span className="text-gray-700">AI analyzes incorrect answers from quizzes</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <span className="text-gray-700">Generates similar questions with different variations</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <span className="text-gray-700">Helps students master concepts they struggle with</span>
+                  </li>
+                </ul>
+                <Link
+                  href="/generator"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                >
+                  <Target className="w-5 h-5" />
+                  Try It Now
+                </Link>
+              </div>
+              <div className="relative">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 border border-gray-100">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                      <span className="text-xl">❌</span>
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900">Quiz Result: 70/100</div>
+                      <div className="text-sm text-gray-500">3 questions incorrect</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg text-sm">
+                      <span className="text-red-500">✗</span>
+                      <span className="text-gray-700">What is 3/4 + 1/2?</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg text-sm">
+                      <span className="text-red-500">✗</span>
+                      <span className="text-gray-700">Simplify: 6/8</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg text-sm">
+                      <span className="text-red-500">✗</span>
+                      <span className="text-gray-700">Which fraction is larger: 2/3 or 5/8?</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="text-gray-400 text-2xl mb-2">↓</div>
+                  </div>
+                  <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold text-sm">
+                    <Target className="w-4 h-4" />
+                    Practice 3 Mistakes
+                  </button>
+                  <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-center gap-2 text-green-700 font-semibold text-sm mb-1">
+                      <Sparkles className="w-4 h-4" />
+                      AI generates new worksheet
+                    </div>
+                    <div className="text-xs text-green-600">
+                      Focused on fractions: addition, simplification, and comparison
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="py-20 bg-gradient-to-br from-teal-600 via-teal-500 to-cyan-500 text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
@@ -444,8 +555,8 @@ export default function Home() {
             <div>
               <h4 className="font-bold text-white mb-4 text-lg">Legal</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="#" className="hover:text-teal-400 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-teal-400 transition-colors">Terms of Service</a></li>
+                <li><Link href="/privacy" className="hover:text-teal-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-teal-400 transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

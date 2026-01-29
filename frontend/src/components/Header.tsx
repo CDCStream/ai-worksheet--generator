@@ -44,14 +44,12 @@ export function Header({ showAuth = true, transparent = false }: HeaderProps) {
             >
               Create Worksheet
             </Link>
-            {user && (
-              <Link
-                href="/my-worksheets"
-                className="px-4 py-2 text-gray-700 hover:text-teal-600 hover:bg-teal-50 font-semibold rounded-xl transition-all"
-              >
-                My Worksheets
-              </Link>
-            )}
+            <Link
+              href="/my-worksheets"
+              className="px-4 py-2 text-gray-700 hover:text-teal-600 hover:bg-teal-50 font-semibold rounded-xl transition-all"
+            >
+              My Worksheets
+            </Link>
             <Link
               href="/pricing"
               className="px-4 py-2 text-gray-700 hover:text-teal-600 hover:bg-teal-50 font-semibold rounded-xl transition-all"
@@ -178,15 +176,13 @@ export function Header({ showAuth = true, transparent = false }: HeaderProps) {
             >
               Create Worksheet
             </Link>
-            {user && (
-              <Link
-                href="/my-worksheets"
-                className="block px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-600 font-semibold rounded-xl transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                My Worksheets
-              </Link>
-            )}
+            <Link
+              href="/my-worksheets"
+              className="block px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-600 font-semibold rounded-xl transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              My Worksheets
+            </Link>
             <Link
               href="/pricing"
               className="block px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-600 font-semibold rounded-xl transition-colors"

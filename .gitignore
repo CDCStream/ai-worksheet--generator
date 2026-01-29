@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-vendor/
+.pnpm-store/
 
 # Build outputs
 .next/
@@ -9,13 +9,10 @@ dist/
 build/
 *.exe
 
-# Environment variables
+# Environment files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-frontend/.env.local
+.env.*.local
 backend/.env
 
 # IDE
@@ -31,13 +28,10 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Testing
 coverage/
 
 # Misc
-*.pem
-.vercel
+*.tsbuildinfo
 

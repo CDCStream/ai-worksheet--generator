@@ -4,6 +4,7 @@ export type QuestionType =
   | 'multiple_choice'
   | 'fill_blank'
   | 'true_false'
+  | 'matching'
   | 'short_answer'
   | 'essay';
 
@@ -21,7 +22,6 @@ export interface Question {
   explanation?: string;
   points: number;
   image?: string;
-  latex_diagram?: string; // TikZ code for geometry/diagrams
 }
 
 export interface Worksheet {
@@ -97,6 +97,7 @@ export const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Multiple Choice', emoji: '🔘' },
   { value: 'fill_blank', label: 'Fill in the Blank', emoji: '✏️' },
   { value: 'true_false', label: 'True/False', emoji: '✓✗' },
+  { value: 'matching', label: 'Matching', emoji: '🔗' },
   { value: 'short_answer', label: 'Short Answer', emoji: '💬' },
   { value: 'essay', label: 'Essay', emoji: '📝' },
 ] as const;

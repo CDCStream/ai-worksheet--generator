@@ -32,7 +32,7 @@ const polarProductIds = {
 
 export default function PricingPage() {
   const { user } = useAuth();
-  const { showError, showWarning, ModalComponent } = useModal();
+  const { showWarning, showError } = useModal();
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(true);
@@ -119,7 +119,7 @@ export default function PricingPage() {
     const productId = subscriptionIds[planKey as keyof typeof subscriptionIds];
 
     if (!productId) {
-      showError('This plan is not yet available. Please try again later.', 'Plan Unavailable');
+      showWarning('This plan is not yet available. Please try again later.', 'Plan Unavailable');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function PricingPage() {
     const productId = polarProductIds.creditPacks[packKey];
 
     if (!productId) {
-      showError('This credit pack is not yet available. Please try again later.', 'Pack Unavailable');
+      showWarning('This credit pack is not yet available. Please try again later.', 'Pack Unavailable');
       return;
     }
 
@@ -376,7 +376,6 @@ export default function PricingPage() {
           </Link>
         </div>
       </main>
-      {ModalComponent}
     </div>
   );
 }

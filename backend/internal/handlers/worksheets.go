@@ -1,16 +1,11 @@
 package handlers
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/makosai/backend/internal/ai"
 	"github.com/makosai/backend/internal/models"
-	"github.com/valyala/fasthttp"
 )
 
 // WorksheetHandler handles worksheet-related requests
@@ -25,13 +20,6 @@ func NewWorksheetHandler(generator ai.Generator) *WorksheetHandler {
 		generator:  generator,
 		worksheets: make(map[string]*models.Worksheet),
 	}
-}
-
-// ProgressEvent represents a generation progress update
-type ProgressEvent struct {
-	Step    int    `json:"step"`
-	Message string `json:"message"`
-	Done    bool   `json:"done"`
 }
 
 // GenerateWorksheet handles POST /api/worksheets/generate
@@ -91,92 +79,6 @@ func (h *WorksheetHandler) GenerateWorksheet(c *fiber.Ctx) error {
 		Success:   true,
 		Worksheet: worksheet,
 	})
-}
-
-// GenerateWorksheetStream handles POST /api/worksheets/generate-stream with SSE
-func (h *WorksheetHandler) GenerateWorksheetStream(c *fiber.Ctx) error {
-	var input models.WorksheetGeneratorInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.GenerationResponse{
-			Success: false,
-			Error:   "Invalid request body",
-		})
-	}
-
-	// Validate required fields
-	if input.Topic == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.GenerationResponse{
-			Success: false,
-			Error:   "Topic is required",
-		})
-	}
-
-	// Set defaults
-	if input.Subject == "" {
-		input.Subject = "general"
-	}
-	if input.GradeLevel == "" {
-		input.GradeLevel = "5"
-	}
-	if input.Difficulty == "" {
-		input.Difficulty = "medium"
-	}
-	if input.QuestionCount == 0 {
-		input.QuestionCount = 10
-	}
-	if len(input.QuestionTypes) == 0 {
-		input.QuestionTypes = []string{"multiple_choice"}
-	}
-	if input.Language == "" {
-		input.Language = "en"
-	}
-
-	// Set SSE headers
-	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-Control", "no-cache")
-	c.Set("Connection", "keep-alive")
-	c.Set("Transfer-Encoding", "chunked")
-
-	log.Printf("🚀 Starting streaming generation for topic: %s", input.Topic)
-
-	// Copy input for use in goroutine
-	inputCopy := input
-
-	c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
-		// Create a new background context for the goroutine
-		ctx := context.Background()
-
-		// Progress callback that sends SSE events
-		onProgress := func(step int, message string) {
-			sendSSE(w, ProgressEvent{Step: step, Message: message})
-		}
-
-		// Generate worksheet with progress callback
-		worksheet, err := h.generator.GenerateWorksheetWithProgress(ctx, inputCopy, onProgress)
-		if err != nil {
-			log.Printf("❌ Generation error: %v", err)
-			sendSSE(w, ProgressEvent{Step: -1, Message: "Error: " + err.Error(), Done: true})
-			return
-		}
-
-		// Store worksheet
-		h.worksheets[worksheet.ID] = worksheet
-
-		// Send final result
-		worksheetJSON, _ := json.Marshal(worksheet)
-		fmt.Fprintf(w, "event: complete\ndata: %s\n\n", worksheetJSON)
-		w.Flush()
-
-		log.Printf("✅ Streaming generation complete: %s", worksheet.ID)
-	}))
-
-	return nil
-}
-
-func sendSSE(w *bufio.Writer, event ProgressEvent) {
-	data, _ := json.Marshal(event)
-	fmt.Fprintf(w, "event: progress\ndata: %s\n\n", data)
-	w.Flush()
 }
 
 // GetWorksheets handles GET /api/worksheets
@@ -315,6 +217,7 @@ func (h *WorksheetHandler) GetOptions(c *fiber.Ctx) error {
 			{"value": "multiple_choice", "label": "Multiple Choice"},
 			{"value": "fill_blank", "label": "Fill in the Blank"},
 			{"value": "true_false", "label": "True/False"},
+			{"value": "matching", "label": "Matching"},
 			{"value": "short_answer", "label": "Short Answer"},
 			{"value": "essay", "label": "Essay"},
 		},

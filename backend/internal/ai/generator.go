@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,13 +16,9 @@ import (
 	"github.com/makosai/backend/internal/models"
 )
 
-// ProgressCallback is called when generation progress changes
-type ProgressCallback func(step int, message string)
-
 // Generator interface for AI worksheet generation
 type Generator interface {
 	GenerateWorksheet(ctx context.Context, input models.WorksheetGeneratorInput) (*models.Worksheet, error)
-	GenerateWorksheetWithProgress(ctx context.Context, input models.WorksheetGeneratorInput, onProgress ProgressCallback) (*models.Worksheet, error)
 }
 
 // MockGenerator generates demo worksheets without AI
@@ -32,14 +29,6 @@ func NewMockGenerator() *MockGenerator {
 }
 
 func (g *MockGenerator) GenerateWorksheet(ctx context.Context, input models.WorksheetGeneratorInput) (*models.Worksheet, error) {
-	return g.GenerateWorksheetWithProgress(ctx, input, nil)
-}
-
-func (g *MockGenerator) GenerateWorksheetWithProgress(ctx context.Context, input models.WorksheetGeneratorInput, onProgress ProgressCallback) (*models.Worksheet, error) {
-	if onProgress != nil {
-		onProgress(0, "Analyzing your requirements...")
-	}
-
 	worksheet := &models.Worksheet{
 		ID:                     "ws_" + uuid.New().String()[:8],
 		Title:                  fmt.Sprintf("%s Worksheet", input.Topic),
@@ -56,10 +45,6 @@ func (g *MockGenerator) GenerateWorksheetWithProgress(ctx context.Context, input
 		UpdatedAt:              time.Now(),
 	}
 
-	if onProgress != nil {
-		onProgress(1, "Generating questions...")
-	}
-
 	// Generate demo questions
 	questions := make([]models.Question, input.QuestionCount)
 	for i := 0; i < input.QuestionCount; i++ {
@@ -70,10 +55,6 @@ func (g *MockGenerator) GenerateWorksheetWithProgress(ctx context.Context, input
 		questions[i] = generateDemoQuestion(i+1, qType, input.Topic)
 	}
 	worksheet.Questions = questions
-
-	if onProgress != nil {
-		onProgress(4, "Finalizing worksheet...")
-	}
 
 	return worksheet, nil
 }
@@ -110,6 +91,12 @@ func generateDemoQuestion(num int, qType string, topic string) models.Question {
 		q.CorrectAnswer = "Essays are evaluated based on content, structure, and clarity."
 		q.Explanation = "Include an introduction, body paragraphs, and conclusion."
 		q.Points = 10
+	case "matching":
+		q.Question = fmt.Sprintf("Question %d: Match the following terms related to %s:", num, topic)
+		q.Options = []string{"Term A → Definition 1", "Term B → Definition 2", "Term C → Definition 3"}
+		q.CorrectAnswer = []string{"A-1", "B-2", "C-3"}
+		q.Explanation = "Match each term with its correct definition."
+		q.Points = 3
 	default:
 		q.Question = fmt.Sprintf("Question %d: Answer the following about %s.", num, topic)
 		q.CorrectAnswer = "Sample answer"
@@ -127,7 +114,7 @@ type AnthropicGenerator struct {
 func NewAnthropicGenerator(apiKey string) *AnthropicGenerator {
 	return &AnthropicGenerator{
 		apiKey: apiKey,
-		client: &http.Client{Timeout: 180 * time.Second}, // 3 minutes for complex diagram generation
+		client: &http.Client{Timeout: 90 * time.Second},
 	}
 }
 
@@ -169,43 +156,21 @@ CRITICAL REQUIREMENTS:
    - Follow the exact structure requested
    - Ensure all required fields are present
 
-6. DIAGRAMS - Do NOT include diagrams in your response.
-   Diagrams will be automatically added in a separate processing step for:
-   - Geometry questions (triangles, circles, angles)
-   - Trigonometry questions
-   - Physics/circuit problems
-   - Coordinate geometry
-
-7. MATHEMATICAL NOTATION (LaTeX):
+6. MATHEMATICAL NOTATION (LaTeX):
    - For math questions, use LaTeX notation within the question text
    - Wrap inline math with $...$ (e.g., $x^2 + y^2 = z^2$)
    - Wrap display math with $$...$$ (e.g., $$\frac{a}{b} = c$$)
+   - For geometry/diagrams, include a "latex_diagram" field with TikZ code
+   - TikZ example: "\\begin{tikzpicture}\\draw (0,0) -- (2,0) -- (1,1.7) -- cycle;\\end{tikzpicture}"
    - Use LaTeX for: fractions, exponents, roots, integrals, summations, matrices
-
-9. SVG DIAGRAMS - The "addDiagramsIfNeeded" step will add diagrams later.
-   For now, focus on creating high-quality questions with proper mathematical notation.
-   Do NOT include "image" field in your response - diagrams will be added in a separate step.`
+   - Keep diagrams simple and educational`
 
 func (g *AnthropicGenerator) GenerateWorksheet(ctx context.Context, input models.WorksheetGeneratorInput) (*models.Worksheet, error) {
-	return g.GenerateWorksheetWithProgress(ctx, input, nil)
-}
-
-func (g *AnthropicGenerator) GenerateWorksheetWithProgress(ctx context.Context, input models.WorksheetGeneratorInput, onProgress ProgressCallback) (*models.Worksheet, error) {
-	// Step 0: Analyzing
-	if onProgress != nil {
-		onProgress(0, "Analyzing your requirements...")
-	}
-
 	prompt := g.buildPrompt(input)
 
-	// Step 1: Generating questions
-	if onProgress != nil {
-		onProgress(1, "Generating questions...")
-	}
-
 	requestBody := map[string]interface{}{
-		"model":      "claude-haiku-4-5-20251001", // Haiku: ~10x cheaper than Sonnet
-		"max_tokens": 8192,
+		"model":      "claude-sonnet-4-5-20250929",
+		"max_tokens": 4096,
 		"system":     systemPrompt,
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
@@ -305,169 +270,31 @@ func (g *AnthropicGenerator) GenerateWorksheetWithProgress(ctx context.Context, 
 		}
 	}
 
-	// Step 2: Adding images for kindergarten/early grades (Unsplash)
-	if isEarlyGrade(input.GradeLevel) {
-		if onProgress != nil {
-			onProgress(2, "Adding colorful images...")
-		}
+	// Add SVG diagrams for geometry/physics/circuit topics (FIRST priority)
+	if needsDiagrams(input.Subject, input.Topic) {
+		log.Println("📐 Adding SVG diagrams for geometry/physics questions...")
+		worksheet.Questions = g.addDiagramsIfNeeded(worksheet.Questions, input.Topic)
+	}
+
+	// Add images for kindergarten/early grades (only if no SVG was added)
+	if isEarlyGrade(input.GradeLevel) && !needsDiagrams(input.Subject, input.Topic) {
 		log.Println("🖼️ Adding images for early grade worksheet...")
 		for i := range worksheet.Questions {
-			imageURL := GetImageForQuestion(input.Topic, worksheet.Questions[i].Question)
-			if imageURL != "" {
-				worksheet.Questions[i].Image = imageURL
-				log.Printf("   ✅ Added image for question %d", i+1)
+			if worksheet.Questions[i].Image == "" {
+				imageURL := GetImageForQuestion(input.Topic, worksheet.Questions[i].Question)
+				if imageURL != "" {
+					worksheet.Questions[i].Image = imageURL
+					log.Printf("   ✅ Added image for question %d", i+1)
+				}
 			}
 		}
-	} else {
-		if onProgress != nil {
-			onProgress(2, "Formatting content...")
-		}
-		log.Println("📝 Formatting content for worksheet...")
 	}
 
-	// Step 3: Add diagrams for geometry/circuit questions only
-	if needsDiagrams(input.Subject, input.Topic) {
-		if onProgress != nil {
-			onProgress(3, "Creating diagrams...")
-		}
-		log.Println("📐 Adding diagrams for geometry/circuit questions...")
-		worksheet.Questions = g.addDiagramsIfNeeded(ctx, worksheet.Questions, input.Subject, input.Topic)
-	} else {
-		if onProgress != nil {
-			onProgress(3, "Creating diagrams...")
-		}
-		log.Println("📝 Skipping diagrams (not needed for this topic)...")
-		time.Sleep(300 * time.Millisecond)
-	}
-
-	// Step 4: Verifying answers (cosmetic step for UX)
-	if onProgress != nil {
-		onProgress(4, "Verifying answer accuracy...")
-	}
-	log.Println("✅ Verifying answer accuracy...")
-	time.Sleep(600 * time.Millisecond)
-
-	// Step 5: Finalizing
-	if onProgress != nil {
-		onProgress(5, "Finalizing worksheet...")
-	}
-	log.Println("📄 Finalizing worksheet...")
+	// Double-check answers for accuracy
+	log.Println("🔍 Double-checking answers for accuracy...")
+	worksheet.Questions = g.verifyAnswers(ctx, worksheet.Questions, input.Subject, input.Topic)
 
 	return worksheet, nil
-}
-
-// addDiagramsIfNeeded analyzes questions and adds SVG diagrams where visual representation helps
-func (g *AnthropicGenerator) addDiagramsIfNeeded(ctx context.Context, questions []models.Question, subject, topic string) []models.Question {
-	// Skip if no questions or for early grades (they use Unsplash images)
-	if len(questions) == 0 {
-		return questions
-	}
-
-	// Build analysis prompt
-	questionsJSON, err := json.Marshal(questions)
-	if err != nil {
-		log.Printf("⚠️ Failed to marshal questions for diagram analysis: %v", err)
-		return questions
-	}
-
-	diagramPrompt := fmt.Sprintf(`Add SVG diagrams to questions that need them.
-
-QUESTIONS: %s
-
-Only add "image" field for geometry/physics questions. Skip algebra/text questions.
-
-TEMPLATES (copy exactly, replace [X] with values):
-
-TRIANGLE: <svg viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg"><polygon points="150,20 20,190 280,190" fill="none" stroke="#333" stroke-width="3"/><text x="150" y="12" text-anchor="middle" font-size="18" font-weight="bold">[C]</text><text x="8" y="205" font-size="18" font-weight="bold">[A]</text><text x="285" y="205" font-size="18" font-weight="bold">[B]</text><text x="65" y="100" fill="blue" font-size="16" font-weight="bold">[b=?]</text><text x="210" y="100" fill="blue" font-size="16" font-weight="bold">[a=?]</text><text x="150" y="215" fill="blue" font-size="16" font-weight="bold" text-anchor="middle">[c=?]</text><text x="45" y="178" fill="red" font-size="14" font-weight="bold">[45°]</text></svg>
-
-CIRCUIT: <svg viewBox="0 0 380 140" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="20" width="340" height="100" fill="none" stroke="#333" stroke-width="3" rx="5"/><rect x="35" y="55" width="35" height="30" fill="#ffd" stroke="#333" stroke-width="2"/><text x="52" y="75" text-anchor="middle" font-size="14" font-weight="bold">[V]</text><path d="M 120,70 L 130,50 L 150,90 L 170,50 L 190,90 L 200,70" fill="none" stroke="#333" stroke-width="3"/><text x="160" y="40" text-anchor="middle" font-size="14" font-weight="bold" fill="blue">[R1]</text><path d="M 250,70 L 260,50 L 280,90 L 300,50 L 320,90 L 330,70" fill="none" stroke="#333" stroke-width="3"/><text x="290" y="40" text-anchor="middle" font-size="14" font-weight="bold" fill="red">[R2]</text></svg>
-
-CIRCLE: <svg viewBox="0 0 240 200" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="100" r="70" fill="none" stroke="#333" stroke-width="3"/><line x1="120" y1="100" x2="190" y2="100" stroke="blue" stroke-width="3"/><circle cx="120" cy="100" r="4" fill="#333"/><text x="120" y="120" text-anchor="middle" font-size="14" font-weight="bold">O</text><text x="155" y="90" fill="blue" font-size="14" font-weight="bold">[r=?]</text></svg>
-
-Return complete JSON array with "image" field where needed. Output ONLY JSON.`, string(questionsJSON))
-
-	requestBody := map[string]interface{}{
-		"model":      "claude-haiku-4-5-20251001", // Haiku for cost efficiency
-		"max_tokens": 16000,
-		"messages": []map[string]string{
-			{"role": "user", "content": diagramPrompt},
-		},
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		log.Printf("⚠️ Failed to marshal diagram request: %v", err)
-		return questions
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		log.Printf("⚠️ Failed to create diagram request: %v", err)
-		return questions
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", g.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := g.client.Do(req)
-	if err != nil {
-		log.Printf("⚠️ Diagram analysis request failed: %v", err)
-		return questions
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("⚠️ Failed to read diagram response: %v", err)
-		return questions
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("⚠️ Diagram API error (status %d): %s", resp.StatusCode, string(body))
-		return questions
-	}
-
-	var apiResp struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-	}
-
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		log.Printf("⚠️ Failed to parse diagram response: %v", err)
-		return questions
-	}
-
-	if len(apiResp.Content) == 0 {
-		log.Printf("⚠️ Empty diagram response")
-		return questions
-	}
-
-	responseText := apiResp.Content[0].Text
-	jsonStr := extractJSON(responseText)
-	if jsonStr == "" {
-		log.Printf("⚠️ No JSON found in diagram response")
-		return questions
-	}
-
-	var diagramQuestions []models.Question
-	if err := json.Unmarshal([]byte(jsonStr), &diagramQuestions); err != nil {
-		log.Printf("⚠️ Failed to parse diagram questions: %v", err)
-		return questions
-	}
-
-	// Count how many diagrams were added (SVG in Image field)
-	diagramCount := 0
-	for _, q := range diagramQuestions {
-		if q.Image != "" && strings.HasPrefix(q.Image, "<svg") {
-			diagramCount++
-		}
-	}
-	log.Printf("   ✅ Added SVG diagrams to %d/%d questions", diagramCount, len(questions))
-
-	return diagramQuestions
 }
 
 // verifyAnswers sends questions to AI for answer verification
@@ -504,7 +331,7 @@ Output ONLY valid JSON array, no markdown or extra text.`, subject, topic, strin
 
 	requestBody := map[string]interface{}{
 		"model":      "claude-sonnet-4-5-20250929",
-		"max_tokens": 32000,
+		"max_tokens": 4096,
 		"messages": []map[string]string{
 			{"role": "user", "content": verifyPrompt},
 		},
@@ -582,57 +409,13 @@ Output ONLY valid JSON array, no markdown or extra text.`, subject, topic, strin
 
 // isEarlyGrade checks if the grade level requires images
 func isEarlyGrade(gradeLevel string) bool {
-	gradeLower := strings.ToLower(strings.TrimSpace(gradeLevel))
-
-	// Exact matches for early grades (Kindergarten, 1st, 2nd)
-	earlyGrades := map[string]bool{
-		"k":            true,
-		"kindergarten": true,
-		"pre-k":        true,
-		"prek":         true,
-		"1":            true,
-		"1st":          true,
-		"1st grade":    true,
-		"2":            true,
-		"2nd":          true,
-		"2nd grade":    true,
-	}
-
-	return earlyGrades[gradeLower]
-}
-
-// needsDiagrams checks if the subject/topic requires visual diagrams
-func needsDiagrams(subject, topic string) bool {
-	subjectLower := strings.ToLower(subject)
-	topicLower := strings.ToLower(topic)
-
-	// Subjects that need diagrams
-	diagramSubjects := []string{
-		"geometry", "math", "mathematics", "trigonometry",
-		"physics", "science", "electronics", "electrical",
-	}
-
-	// Topics that need diagrams
-	diagramTopics := []string{
-		"triangle", "circle", "angle", "polygon", "shape",
-		"circuit", "resistor", "voltage", "current", "ohm",
-		"force", "vector", "motion", "projectile",
-		"sine", "cosine", "tangent", "pythagor",
-		"area", "perimeter", "volume", "coordinate",
-	}
-
-	for _, s := range diagramSubjects {
-		if strings.Contains(subjectLower, s) {
+	earlyGrades := []string{"k", "kindergarten", "pre-k", "prek", "1", "2", "1st", "2nd"}
+	gradeLower := strings.ToLower(gradeLevel)
+	for _, g := range earlyGrades {
+		if strings.Contains(gradeLower, g) {
 			return true
 		}
 	}
-
-	for _, t := range diagramTopics {
-		if strings.Contains(topicLower, t) {
-			return true
-		}
-	}
-
 	return false
 }
 
@@ -713,32 +496,7 @@ Generate a JSON object with this EXACT structure:
 • fill_blank: use __________ for blank, correct_answer = the word/phrase
 • short_answer: no options, correct_answer = sample correct response
 • essay: no options, points = higher value, correct_answer = grading criteria
-
-🎓 BLOOM'S TAXONOMY - DIFFICULTY LEVELS (CRITICAL):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EASY (Bloom Levels 1-2: Remember & Understand):
-- Simple recall of facts, definitions, formulas
-- Basic comprehension questions
-- "What is...?", "Define...", "Which of the following..."
-- Direct application of memorized formulas
-- Example: "What is the formula for the area of a circle?"
-
-MEDIUM (Bloom Levels 3-4: Apply & Analyze):
-- Multi-step problem solving requiring application
-- Analyzing relationships, comparing concepts
-- "Calculate...", "Solve...", "Compare...", "Explain why..."
-- Problems requiring 2-3 steps to solve
-- Example: "A triangle has sides 5, 12, and 13. Prove it's a right triangle and find its area."
-
-HARD (Bloom Levels 5-6: Evaluate & Create):
-- Complex multi-step problems requiring synthesis
-- Evaluating approaches, justifying solutions
-- Creating proofs, designing solutions
-- "Prove that...", "Design...", "Justify...", "What if..."
-- Problems requiring 4+ steps, combining multiple concepts
-- Example: "Given a parallelogram ABCD where E is the midpoint of BC, prove that line AE divides diagonal BD in ratio 2:1."
-
-⚠️ IMPORTANT: Match difficulty STRICTLY to Bloom's levels. Do NOT make "hard" questions just slightly harder than "medium". Hard questions should require synthesis, evaluation, and creative problem-solving.
+• matching: options = ["Term A → Definition 1", ...], correct_answer = ["A-1", ...]
 
 ⚠️ VERIFICATION CHECKLIST (Do this for EACH question):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -787,9 +545,127 @@ func getDefaultPoints(qType string) int {
 		return 10
 	case "short_answer":
 		return 5
+	case "matching":
+		return 3
 	default:
 		return 2
 	}
+}
+
+// needsDiagrams checks if the subject/topic requires diagrams
+func needsDiagrams(subject, topic string) bool {
+	topic = strings.ToLower(topic)
+	subject = strings.ToLower(subject)
+
+	diagramKeywords := []string{
+		"geometry", "triangle", "circle", "angle", "polygon", "area", "perimeter",
+		"circuit", "electrical", "resistor", "voltage", "current",
+		"physics", "force", "motion", "vector",
+		"trigonometry", "sine", "cosine", "tangent",
+	}
+
+	for _, keyword := range diagramKeywords {
+		if strings.Contains(topic, keyword) || strings.Contains(subject, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// addDiagramsIfNeeded adds SVG diagrams to questions that need them
+func (g *AnthropicGenerator) addDiagramsIfNeeded(questions []models.Question, topic string) []models.Question {
+	topic = strings.ToLower(topic)
+
+	for i := range questions {
+		q := &questions[i]
+		questionLower := strings.ToLower(q.Question)
+
+		// Skip if already has an image
+		if q.Image != "" {
+			continue
+		}
+
+		// Triangle questions (including trigonometry problems)
+		if strings.Contains(questionLower, "triangle") || strings.Contains(questionLower, "△") ||
+			strings.Contains(questionLower, "law of cosines") || strings.Contains(questionLower, "law of sines") ||
+			strings.Contains(questionLower, "cosine rule") || strings.Contains(questionLower, "sine rule") ||
+			(strings.Contains(questionLower, "sides") && strings.Contains(questionLower, "angle")) {
+			q.Image = generateTriangleSVG(q.Question)
+			log.Printf("   ✅ Added triangle SVG for question %d", i+1)
+		}
+
+		// Circle questions
+		if strings.Contains(questionLower, "circle") || strings.Contains(questionLower, "radius") {
+			q.Image = generateCircleSVG(q.Question)
+			log.Printf("   ✅ Added circle SVG for question %d", i+1)
+		}
+
+		// Circuit questions
+		if strings.Contains(questionLower, "circuit") || strings.Contains(questionLower, "resistor") {
+			q.Image = generateCircuitSVG(q.Question)
+			log.Printf("   ✅ Added circuit SVG for question %d", i+1)
+		}
+	}
+
+	return questions
+}
+
+// generateTriangleSVG creates an SVG for triangle problems
+func generateTriangleSVG(question string) string {
+	// Extract values from question if possible
+	a, b, c := "a", "b", "c"
+
+	// Try to extract side lengths
+	re := regexp.MustCompile(`[abc]\s*=\s*(\d+)`)
+	matches := re.FindAllStringSubmatch(question, -1)
+	if len(matches) >= 3 {
+		a = matches[0][1]
+		b = matches[1][1]
+		c = matches[2][1]
+	}
+
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" width="200" height="180">
+  <polygon points="100,20 30,160 170,160" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <text x="100" y="12" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">A</text>
+  <text x="20" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">B</text>
+  <text x="180" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">C</text>
+  <text x="55" y="85" text-anchor="middle" font-size="13" fill="#0f766e">%s</text>
+  <text x="145" y="85" text-anchor="middle" font-size="13" fill="#0f766e">%s</text>
+  <text x="100" y="178" text-anchor="middle" font-size="13" fill="#0f766e">%s</text>
+</svg>`, a, b, c)
+}
+
+// generateCircleSVG creates an SVG for circle problems
+func generateCircleSVG(question string) string {
+	radius := "r"
+
+	// Try to extract radius
+	re := regexp.MustCompile(`radius\s*(?:of|is|=)?\s*(\d+)`)
+	if match := re.FindStringSubmatch(strings.ToLower(question)); len(match) > 1 {
+		radius = match[1]
+	}
+
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="70" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <circle cx="100" cy="100" r="3" fill="#0d9488"/>
+  <line x1="100" y1="100" x2="170" y2="100" stroke="#f97316" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="100" y="95" text-anchor="middle" font-size="12" fill="#1e293b">O</text>
+  <text x="135" y="95" text-anchor="middle" font-size="13" font-weight="bold" fill="#f97316">r = %s</text>
+</svg>`, radius)
+}
+
+// generateCircuitSVG creates an SVG for circuit problems
+func generateCircuitSVG(question string) string {
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120" width="240" height="120">
+  <rect x="20" y="30" width="200" height="60" fill="none" stroke="#0d9488" stroke-width="2"/>
+  <rect x="80" y="25" width="30" height="10" fill="#f97316" stroke="#ea580c" stroke-width="1"/>
+  <text x="95" y="20" text-anchor="middle" font-size="10" fill="#1e293b">R₁</text>
+  <rect x="130" y="25" width="30" height="10" fill="#f97316" stroke="#ea580c" stroke-width="1"/>
+  <text x="145" y="20" text-anchor="middle" font-size="10" fill="#1e293b">R₂</text>
+  <text x="30" y="65" font-size="14" fill="#1e293b">+</text>
+  <text x="200" y="65" font-size="14" fill="#1e293b">−</text>
+  <text x="120" y="110" text-anchor="middle" font-size="11" fill="#64748b">Series Circuit</text>
+</svg>`
 }
 
 // OpenAIGenerator uses OpenAI API (placeholder)
@@ -802,11 +678,7 @@ func NewOpenAIGenerator(apiKey string) *OpenAIGenerator {
 }
 
 func (g *OpenAIGenerator) GenerateWorksheet(ctx context.Context, input models.WorksheetGeneratorInput) (*models.Worksheet, error) {
-	return g.GenerateWorksheetWithProgress(ctx, input, nil)
-}
-
-func (g *OpenAIGenerator) GenerateWorksheetWithProgress(ctx context.Context, input models.WorksheetGeneratorInput, onProgress ProgressCallback) (*models.Worksheet, error) {
 	// Fallback to mock for now
 	mock := NewMockGenerator()
-	return mock.GenerateWorksheetWithProgress(ctx, input, onProgress)
+	return mock.GenerateWorksheet(ctx, input)
 }

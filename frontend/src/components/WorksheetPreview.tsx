@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Worksheet, Question } from '@/lib/types';
 import { Download, Printer, Share2, CheckCircle, BookOpen, FileText, Pencil, Check, X, Play, ChevronDown } from 'lucide-react';
+import { useModal } from '@/components/Modal';
 import Link from 'next/link';
 import { LatexRenderer } from './LatexRenderer';
-import { useModal } from './Modal';
 
 type ExportOption = 'questions' | 'answers' | 'both';
 import { exportToHtml, exportToPdf } from '@/lib/export';
@@ -18,7 +18,7 @@ interface WorksheetPreviewProps {
 }
 
 export function WorksheetPreview({ worksheet, showActions = true, onTitleChange, onQuestionsChange }: WorksheetPreviewProps) {
-  const { showInfo, showSuccess, showError, ModalComponent } = useModal();
+  const { showInfo, showSuccess } = useModal();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(worksheet.title);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -50,28 +50,24 @@ export function WorksheetPreview({ worksheet, showActions = true, onTitleChange,
 
     if (option === 'answers') {
       // Export only answer key
-      exportToHtml({ ...exportWorksheet, title: editedTitle + ' - Answer Key' }, 'answer_key');
+      exportToHtml({ ...exportWorksheet, title: editedTitle + ' - Answer Key' });
     } else if (option === 'questions') {
-      exportToHtml({ ...exportWorksheet, include_answer_key: false }, 'questions');
+      exportToHtml({ ...exportWorksheet, include_answer_key: false });
     } else {
-      exportToHtml(exportWorksheet, 'both');
+      exportToHtml(exportWorksheet);
     }
     setOpenDropdown(null);
   };
 
-  const handleExportPdf = async (option: ExportOption) => {
+  const handleExportPdf = (option: ExportOption) => {
     const content = option === 'answers' ? 'answer_key' : option === 'questions' ? 'questions' : 'both';
     const exportWorksheet = { ...worksheet, title: editedTitle, questions: localQuestions };
-    try {
-      await exportToPdf(exportWorksheet, content);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'PDF export failed', 'Export Error');
-    }
+    exportToPdf(exportWorksheet, content);
     setOpenDropdown(null);
   };
 
   const handlePrint = (option: ExportOption) => {
-    // For print, we'll show an alert with instructions since we can't dynamically change print content easily
+    // For print, we'll show an info message since we can't dynamically change print content easily
     let message = '';
     if (option === 'questions') {
       message = 'Printing Questions Only - Answer Key will be hidden';
@@ -80,8 +76,8 @@ export function WorksheetPreview({ worksheet, showActions = true, onTitleChange,
     } else {
       message = 'Printing Questions and Answer Key';
     }
-    showInfo(message, 'Printing');
-    window.print();
+    showInfo(message, 'Print Preview');
+    setTimeout(() => window.print(), 500);
     setOpenDropdown(null);
   };
 
@@ -412,7 +408,6 @@ export function WorksheetPreview({ worksheet, showActions = true, onTitleChange,
           </div>
         </div>
       )}
-      {ModalComponent}
     </div>
   );
 }
@@ -438,6 +433,7 @@ function QuestionCard({ question, number, onPointsChange, editable = false }: Qu
       multiple_choice: { label: 'Multiple Choice', color: 'text-teal-700', bg: 'bg-teal-100' },
       fill_blank: { label: 'Fill in the Blank', color: 'text-amber-700', bg: 'bg-amber-100' },
       true_false: { label: 'True/False', color: 'text-purple-700', bg: 'bg-purple-100' },
+      matching: { label: 'Matching', color: 'text-blue-700', bg: 'bg-blue-100' },
       short_answer: { label: 'Short Answer', color: 'text-rose-700', bg: 'bg-rose-100' },
       essay: { label: 'Essay', color: 'text-indigo-700', bg: 'bg-indigo-100' },
     };
@@ -509,28 +505,13 @@ function QuestionCard({ question, number, onPointsChange, editable = false }: Qu
         <LatexRenderer text={question.question} />
       </p>
 
-      {/* Question Image - SVG or URL */}
-      {question.image && (
-        <div className="mb-5 flex flex-col items-center">
-          {question.image.trim().startsWith('<svg') ? (
-            <>
-              <div
-                className="bg-white rounded-xl border-2 border-gray-200 p-4 shadow-sm"
-                style={{ minWidth: '300px', minHeight: '150px' }}
-                dangerouslySetInnerHTML={{ __html: question.image }}
-              />
-              <details className="mt-2 text-xs text-gray-400 max-w-lg">
-                <summary className="cursor-pointer hover:text-gray-600">Debug: View SVG</summary>
-                <pre className="mt-1 p-2 bg-gray-100 rounded overflow-x-auto whitespace-pre-wrap break-all">{question.image}</pre>
-              </details>
-            </>
-          ) : question.image.startsWith('http') ? (
-            <img src={question.image} alt="Question visual" className="max-w-xs rounded-xl shadow-md" />
-          ) : (
-            <div className="text-xs text-red-500 p-2 bg-red-50 rounded">
-              Unknown image format: {question.image.substring(0, 100)}...
-            </div>
-          )}
+      {/* Question Image - Only show valid SVG */}
+      {question.image && question.image.trim().startsWith('<svg') && (
+        <div className="mb-5 flex justify-center">
+          <div
+            className="max-w-full h-auto rounded-xl shadow-md max-h-48 overflow-hidden bg-white p-2"
+            dangerouslySetInnerHTML={{ __html: question.image }}
+          />
         </div>
       )}
 
@@ -551,6 +532,16 @@ function QuestionCard({ question, number, onPointsChange, editable = false }: Qu
       )}
 
       {/* Matching options */}
+      {question.type === 'matching' && question.options && (
+        <div className="space-y-3 ml-2">
+          {question.options.map((option, index) => (
+            <div key={index} className="p-3 bg-blue-50 rounded-xl text-gray-700 font-medium border border-blue-100">
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Fill blank input area */}
       {(question.type === 'fill_blank') && (
         <div className="ml-2 mt-3">
