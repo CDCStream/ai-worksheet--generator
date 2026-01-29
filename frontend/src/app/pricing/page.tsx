@@ -51,7 +51,7 @@ export default function PricingPage() {
     fetchUserCredits();
   }, [user]);
 
-  const planIcons = {
+  const planIcons: Record<keyof typeof PLANS, typeof Sparkles> = {
     free: Sparkles,
     starter: Zap,
     pro: Crown,
