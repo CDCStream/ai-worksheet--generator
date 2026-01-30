@@ -64,3 +64,5 @@ func (h *EmailHandler) SendWelcomeEmail(c *fiber.Ctx) error {
 	})
 }
 
+
+

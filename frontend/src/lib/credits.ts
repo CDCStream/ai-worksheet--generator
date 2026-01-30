@@ -246,8 +246,22 @@ export async function addCredits(userId: string, amount: number, type: 'purchase
   }
 }
 
-export function getWorksheetCreditCost(): number {
-  return 1; // Each worksheet costs 1 credit
+export function getWorksheetCreditCost(questionCount: number = 10, gradeLevel: string = '5'): number {
+  // Base cost: 1 credit for up to 10 questions
+  let cost = 1;
+
+  // Additional credits for more questions (1 credit per 10 questions)
+  if (questionCount > 10) {
+    cost += Math.ceil((questionCount - 10) / 10);
+  }
+
+  // Kindergarten to 2nd grade worksheets include images, cost extra
+  const lowGrades = ['K', '1', '2'];
+  if (lowGrades.includes(gradeLevel)) {
+    cost += 1;
+  }
+
+  return cost;
 }
 
 export async function getCreditTransactions(userId: string): Promise<CreditTransaction[]> {

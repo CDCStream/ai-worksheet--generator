@@ -433,7 +433,6 @@ function QuestionCard({ question, number, onPointsChange, editable = false }: Qu
       multiple_choice: { label: 'Multiple Choice', color: 'text-teal-700', bg: 'bg-teal-100' },
       fill_blank: { label: 'Fill in the Blank', color: 'text-amber-700', bg: 'bg-amber-100' },
       true_false: { label: 'True/False', color: 'text-purple-700', bg: 'bg-purple-100' },
-      matching: { label: 'Matching', color: 'text-blue-700', bg: 'bg-blue-100' },
       short_answer: { label: 'Short Answer', color: 'text-rose-700', bg: 'bg-rose-100' },
       essay: { label: 'Essay', color: 'text-indigo-700', bg: 'bg-indigo-100' },
     };
@@ -526,17 +525,6 @@ function QuestionCard({ question, number, onPointsChange, editable = false }: Qu
               <span className="text-gray-700 font-medium">
                 <LatexRenderer text={option} />
               </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Matching options */}
-      {question.type === 'matching' && question.options && (
-        <div className="space-y-3 ml-2">
-          {question.options.map((option, index) => (
-            <div key={index} className="p-3 bg-blue-50 rounded-xl text-gray-700 font-medium border border-blue-100">
-              {option}
             </div>
           ))}
         </div>

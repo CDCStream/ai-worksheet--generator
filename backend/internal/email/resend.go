@@ -121,7 +121,7 @@ func generateWelcomeEmailHTML(userName string) string {
                                                 </td>
                                                 <td>
                                                     <p style="font-size: 18px; font-weight: 700; color: #92400e; margin: 0 0 8px 0;">Your Welcome Gift</p>
-                                                    <p style="font-size: 14px; color: #a16207; margin: 0;">You've got <strong>5 free credits</strong> to create worksheets. Each worksheet costs just 2 credits!</p>
+                                                    <p style="font-size: 14px; color: #a16207; margin: 0;">You've got <strong>5 free credits</strong> to create worksheets. Start generating now!</p>
                                                 </td>
                                             </tr>
                                         </table>
@@ -215,4 +215,3 @@ func generateWelcomeEmailHTML(userName string) string {
 </html>
 `, userName)
 }
-

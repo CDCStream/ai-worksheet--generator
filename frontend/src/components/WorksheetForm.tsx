@@ -11,8 +11,9 @@ import {
   QuestionType,
   Difficulty
 } from '@/lib/types';
-import { Sparkles, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, Wand2, CreditCard } from 'lucide-react';
 import { useModal } from '@/components/Modal';
+import { getWorksheetCreditCost } from '@/lib/credits';
 
 interface WorksheetFormProps {
   onGenerate: (input: WorksheetGeneratorInput) => void;
@@ -311,11 +312,17 @@ INSTRUCTIONS:
           <>
             <Wand2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
             <span>Generate Practice Worksheet</span>
+            <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-sm">
+              {getWorksheetCreditCost(formData.question_count, formData.grade_level)} credit{getWorksheetCreditCost(formData.question_count, formData.grade_level) > 1 ? 's' : ''}
+            </span>
           </>
         ) : (
           <>
             <Wand2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
             <span>Generate Worksheet</span>
+            <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-sm">
+              {getWorksheetCreditCost(formData.question_count, formData.grade_level)} credit{getWorksheetCreditCost(formData.question_count, formData.grade_level) > 1 ? 's' : ''}
+            </span>
           </>
         )}
       </button>

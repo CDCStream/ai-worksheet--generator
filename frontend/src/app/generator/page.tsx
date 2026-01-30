@@ -9,7 +9,8 @@ import { WorksheetPreview } from '@/components/WorksheetPreview';
 import { Worksheet, WorksheetGeneratorInput } from '@/lib/types';
 import { generateWorksheet } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
-import { ArrowLeft, RefreshCw, Sparkles, Save, Download, Printer, Eye, Target } from 'lucide-react';
+import { getUserCredits, UserCredits, PLANS } from '@/lib/credits';
+import { ArrowLeft, RefreshCw, Sparkles, Save, Download, Printer, Eye, Target, CreditCard } from 'lucide-react';
 
 function GeneratorContent() {
   const router = useRouter();
@@ -30,6 +31,14 @@ function GeneratorContent() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generationStep, setGenerationStep] = useState(0);
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
+
+  // Fetch user credits
+  useEffect(() => {
+    if (user?.id) {
+      getUserCredits(user.id).then(setUserCredits);
+    }
+  }, [user?.id]);
 
   const generationSteps = [
     { label: 'Analyzing your requirements...', icon: '🔍' },
@@ -71,12 +80,14 @@ function GeneratorContent() {
       clearInterval(stepInterval);
       setGenerationStep(generationSteps.length - 1);
       setWorksheet(result);
-    } catch (err) {
-      clearInterval(stepInterval);
-      setError(err instanceof Error ? err.message : 'Failed to generate worksheet');
-    } finally {
       setIsGenerating(false);
       setGenerationStep(0);
+    } catch (err) {
+      clearInterval(stepInterval);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate worksheet';
+      setError(errorMessage);
+      // Don't immediately hide - let user see the error on loading screen
+      // isGenerating will be set to false when user dismisses
     }
   };
 
@@ -298,23 +309,50 @@ function GeneratorContent() {
                 </div>
               </div>
 
-              {/* Free Tier Info */}
-              <div className="card p-6 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 border-amber-200/50">
+              {/* Credits Info */}
+              <div className={`card p-6 ${
+                userCredits?.plan === 'free'
+                  ? 'bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 border-amber-200/50'
+                  : 'bg-gradient-to-br from-teal-50 via-cyan-50 to-teal-50 border-teal-200/50'
+              }`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-amber-200 rounded-xl flex items-center justify-center">
-                    <span className="text-xl">⚡</span>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    userCredits?.plan === 'free' ? 'bg-amber-200' : 'bg-teal-200'
+                  }`}>
+                    <CreditCard className={`w-5 h-5 ${
+                      userCredits?.plan === 'free' ? 'text-amber-700' : 'text-teal-700'
+                    }`} />
                   </div>
-                  <h3 className="font-bold text-amber-800 text-lg">Free Plan</h3>
+                  <h3 className={`font-bold text-lg ${
+                    userCredits?.plan === 'free' ? 'text-amber-800' : 'text-teal-800'
+                  }`}>
+                    {userCredits?.plan ? PLANS[userCredits.plan as keyof typeof PLANS]?.name || 'Free Plan' : 'Free Plan'}
+                  </h3>
                 </div>
-                <p className="text-sm text-amber-700 mb-4">
-                  You have <span className="font-bold text-amber-900">5 free worksheets</span> remaining this month.
+                <p className={`text-sm mb-4 ${
+                  userCredits?.plan === 'free' ? 'text-amber-700' : 'text-teal-700'
+                }`}>
+                  You have <span className={`font-bold ${
+                    userCredits?.plan === 'free' ? 'text-amber-900' : 'text-teal-900'
+                  }`}>{userCredits?.credits ?? '...'} credits</span> remaining.
+                  <span className="block text-xs mt-1 opacity-75">Cost varies by question count & grade level.</span>
                 </p>
-                <Link
-                  href="/pricing"
-                  className="block w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl transition-all text-center shadow-lg shadow-amber-200"
-                >
-                  Upgrade to Pro
-                </Link>
+                {userCredits?.plan === 'free' && (
+                  <Link
+                    href="/pricing"
+                    className="block w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl transition-all text-center shadow-lg shadow-amber-200"
+                  >
+                    Upgrade to Pro
+                  </Link>
+                )}
+                {userCredits?.plan !== 'free' && (
+                  <Link
+                    href="/pricing"
+                    className="block w-full py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl transition-all text-center shadow-lg shadow-teal-200"
+                  >
+                    Get More Credits
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -324,59 +362,92 @@ function GeneratorContent() {
         {isGenerating && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-white rounded-3xl p-10 max-w-md mx-4 text-center shadow-2xl animate-scale-in">
-              <div className="relative w-20 h-20 mx-auto mb-6">
-                <div className="absolute inset-0 bg-teal-200 rounded-full animate-ping opacity-30"></div>
-                <div className="relative w-20 h-20 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center">
-                  <span className="text-4xl">{generationSteps[generationStep]?.icon || '✨'}</span>
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-3">Creating Your Worksheet</h3>
-
-              {/* Steps List */}
-              <div className="space-y-3 mb-6 text-left">
-                {generationSteps.map((step, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                      index === generationStep
-                        ? 'bg-teal-50 border-2 border-teal-200'
-                        : index < generationStep
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-gray-50 border border-gray-100 opacity-50'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg ${
-                      index === generationStep
-                        ? 'bg-teal-100 animate-pulse'
-                        : index < generationStep
-                        ? 'bg-green-100'
-                        : 'bg-gray-100'
-                    }`}>
-                      {index < generationStep ? '✓' : step.icon}
+              {error ? (
+                /* Error State */
+                <>
+                  <div className="relative w-20 h-20 mx-auto mb-6">
+                    <div className="relative w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center">
+                      <span className="text-4xl">❌</span>
                     </div>
-                    <span className={`font-medium ${
-                      index === generationStep
-                        ? 'text-teal-700'
-                        : index < generationStep
-                        ? 'text-green-700'
-                        : 'text-gray-400'
-                    }`}>
-                      {step.label}
-                    </span>
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-3">Generation Failed</h3>
+                  <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+                    <p className="text-red-700 font-medium text-sm">{error}</p>
+                  </div>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => {
+                        setError(null);
+                        setIsGenerating(false);
+                        setGenerationStep(0);
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-600 transition-all"
+                    >
+                      Try Again
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      If the problem persists, please check your internet connection or try again later.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                /* Loading State */
+                <>
+                  <div className="relative w-20 h-20 mx-auto mb-6">
+                    <div className="absolute inset-0 bg-teal-200 rounded-full animate-ping opacity-30"></div>
+                    <div className="relative w-20 h-20 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center">
+                      <span className="text-4xl">{generationSteps[generationStep]?.icon || '✨'}</span>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-3">Creating Your Worksheet</h3>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-teal-500 to-cyan-500 h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${((generationStep + 1) / generationSteps.length) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-sm text-gray-400 mt-4">This usually takes 10-20 seconds...</p>
+                  {/* Steps List */}
+                  <div className="space-y-3 mb-6 text-left">
+                    {generationSteps.map((step, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                          index === generationStep
+                            ? 'bg-teal-50 border-2 border-teal-200'
+                            : index < generationStep
+                            ? 'bg-green-50 border border-green-200'
+                            : 'bg-gray-50 border border-gray-100 opacity-50'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg ${
+                          index === generationStep
+                            ? 'bg-teal-100 animate-pulse'
+                            : index < generationStep
+                            ? 'bg-green-100'
+                            : 'bg-gray-100'
+                        }`}>
+                          {index < generationStep ? '✓' : step.icon}
+                        </div>
+                        <span className={`font-medium ${
+                          index === generationStep
+                            ? 'text-teal-700'
+                            : index < generationStep
+                            ? 'text-green-700'
+                            : 'text-gray-400'
+                        }`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-teal-500 to-cyan-500 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${((generationStep + 1) / generationSteps.length) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400 mt-4">This usually takes 30-40 seconds...</p>
+                </>
+              )}
             </div>
           </div>
         )}

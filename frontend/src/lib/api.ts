@@ -205,15 +205,6 @@ function generateDemoQuestion(num: number, type: QuestionType, topic: string): Q
         correct_answer: 'Sample answer explaining the importance...',
         explanation: 'A good answer should include key points about the topic.',
       };
-    case 'matching':
-      return {
-        ...baseQuestion,
-        question: `Question ${num}: Match the following terms related to ${topic}:`,
-        options: ['Term A → Definition 1', 'Term B → Definition 2', 'Term C → Definition 3'],
-        correct_answer: ['A-1', 'B-2', 'C-3'],
-        explanation: 'Match each term with its correct definition.',
-        points: 3,
-      };
     case 'essay':
       return {
         ...baseQuestion,

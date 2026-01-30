@@ -29,7 +29,7 @@ export default function Home() {
     {
       icon: <FileText className="w-8 h-8" />,
       title: 'Multiple Formats',
-      description: 'MCQ, fill-in-blank, essays, matching, and more question types.',
+      description: 'MCQ, fill-in-blank, true/false, essays, and more question types.',
       color: 'bg-amber-100 text-amber-600',
     },
     {

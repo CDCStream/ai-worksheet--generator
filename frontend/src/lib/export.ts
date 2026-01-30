@@ -173,13 +173,6 @@ function generatePrintablePdfHtml(worksheet: Worksheet, content: 'questions' | '
     if (q.type === 'essay') {
       return '<div class="answer-box essay"></div>';
     }
-    if (q.type === 'matching' && q.options) {
-      return `
-        <div class="matching-options">
-          ${q.options.map(opt => `<div class="matching-item">${renderLatex(opt)}</div>`).join('')}
-        </div>
-      `;
-    }
     return '';
   };
 
@@ -554,13 +547,6 @@ function generatePdfHtmlWithLatex(worksheet: Worksheet, content: 'questions' | '
     if (q.type === 'essay') {
       return '<div style="margin: 10px 20px; border: 2px dashed #ddd; border-radius: 8px; min-height: 120px;"></div>';
     }
-    if (q.type === 'matching' && q.options) {
-      return `
-        <div style="margin-left: 15px; margin-top: 10px;">
-          ${q.options.map(opt => `<p style="padding: 8px 12px; background: #f0f9ff; margin: 6px 0; border-radius: 6px; border-left: 3px solid #0d9488; font-size: 13px;">${renderText(opt)}</p>`).join('')}
-        </div>
-      `;
-    }
     return '';
   };
 
@@ -740,12 +726,6 @@ function renderPdfQuestionInput(q: { type: string; options?: string[] }): string
       return '<div style="margin-left: 20px; border: 2px dashed #ddd; border-radius: 8px; min-height: 80px; margin-top: 10px;"></div>';
     case 'essay':
       return '<div style="margin-left: 20px; border: 2px dashed #ddd; border-radius: 8px; min-height: 150px; margin-top: 10px;"></div>';
-    case 'matching':
-      return q.options ? `
-        <div style="margin-left: 20px;">
-          ${q.options.map(opt => `<p style="padding: 10px; background: white; margin: 8px 0; border-radius: 6px; border-left: 3px solid #0d9488;">${opt}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
@@ -990,12 +970,6 @@ function renderQuestionInputPrint(q: { type: string; options?: string[] }): stri
       return '<div class="text-box"></div>';
     case 'essay':
       return '<div class="essay-box"></div>';
-    case 'matching':
-      return q.options ? `
-        <div class="options">
-          ${q.options.map(opt => `<p style="padding: 10px; background: white; margin: 8px 0; border-radius: 6px; border-left: 3px solid #0d9488;">${opt}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
@@ -1094,12 +1068,6 @@ function renderQuestionInputPdf(q: { type: string; options?: string[] }): string
       return '<div style="margin-left: 20px; border: 2px dashed #ddd; border-radius: 8px; min-height: 80px; margin-top: 10px;"></div>';
     case 'essay':
       return '<div style="margin-left: 20px; border: 2px dashed #ddd; border-radius: 8px; min-height: 150px; margin-top: 10px;"></div>';
-    case 'matching':
-      return q.options ? `
-        <div style="margin-left: 20px;">
-          ${q.options.map(opt => `<p style="padding: 10px; background: white; margin: 8px 0; border-radius: 6px; border-left: 3px solid #0d9488;">${opt}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
@@ -1646,7 +1614,6 @@ function getQuestionTypeLabel(type: string): string {
     multiple_choice: 'Multiple Choice',
     fill_blank: 'Fill in the Blank',
     true_false: 'True/False',
-    matching: 'Matching',
     short_answer: 'Short Answer',
     essay: 'Essay',
   };
@@ -1673,12 +1640,6 @@ function renderQuestionInput(q: { type: string; options?: string[]; id: string }
       return '<textarea class="answer-input" rows="3" placeholder="Write your answer..."></textarea>';
     case 'essay':
       return '<textarea class="answer-input" rows="6" placeholder="Write your essay..."></textarea>';
-    case 'matching':
-      return q.options ? `
-        <div class="options">
-            ${q.options.map(opt => `<p style="padding: 8px; background: white; margin: 5px 0; border-radius: 4px;">${opt}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
@@ -1704,12 +1665,6 @@ function renderInteractiveQuestionInput(q: { type: string; options?: string[]; i
       return '<textarea class="answer-input" rows="3" placeholder="Write your answer..."></textarea>';
     case 'essay':
       return '<textarea class="answer-input" rows="6" placeholder="Write your essay..."></textarea>';
-    case 'matching':
-      return q.options ? `
-        <div class="options">
-            ${q.options.map(opt => `<p style="padding: 8px; background: white; margin: 5px 0; border-radius: 4px;">${opt}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
@@ -1740,12 +1695,6 @@ function renderInteractiveQuestionInputHtml(q: { type: string; options?: string[
       return '<textarea class="answer-input" rows="3" placeholder="Write your answer..."></textarea>';
     case 'essay':
       return '<textarea class="answer-input" rows="6" placeholder="Write your essay..."></textarea>';
-    case 'matching':
-      return q.options ? `
-        <div class="options">
-            ${q.options.map(opt => `<p style="padding: 8px; background: white; margin: 5px 0; border-radius: 4px;">${renderText(opt)}</p>`).join('')}
-        </div>
-      ` : '';
     default:
       return '';
   }
