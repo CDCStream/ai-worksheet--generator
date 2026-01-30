@@ -221,14 +221,11 @@ function generatePrintablePdfHtml(worksheet: Worksheet, content: 'questions' | '
     return renderLatexToHtml(text);
   };
 
-  // Render images (SVG or URL)
+  // Render SVG images
   const renderImage = (image: string | undefined): string => {
     if (!image) return '';
     if (image.trim().startsWith('<svg')) {
       return `<div style="text-align: center; margin: 10px 0;">${image}</div>`;
-    }
-    if (image.trim().startsWith('http')) {
-      return `<div style="text-align: center; margin: 10px 0;"><img src="${image}" alt="Question illustration" style="max-width: 200px; max-height: 150px; border-radius: 8px;" /></div>`;
     }
     return '';
   };
@@ -342,14 +339,11 @@ function generatePdfHtmlWithLatex(worksheet: Worksheet, content: 'questions' | '
   // Helper to render LaTeX
   const renderText = (text: string): string => renderLatexToHtml(text);
 
-  // Helper to render images (SVG or URL)
+  // Helper to render SVG images
   const renderImage = (image: string | undefined): string => {
     if (!image) return '';
     if (image.trim().startsWith('<svg')) {
       return `<div style="display: flex; justify-content: center; margin: 10px 0;">${image}</div>`;
-    }
-    if (image.trim().startsWith('http')) {
-      return `<div style="display: flex; justify-content: center; margin: 10px 0;"><img src="${image}" alt="Question illustration" style="max-width: 200px; max-height: 150px; border-radius: 8px;" /></div>`;
     }
     return '';
   };
@@ -928,14 +922,11 @@ export function exportToHtml(worksheet: Worksheet, content: 'questions' | 'answe
     return renderLatexToHtml(text);
   };
 
-  // Helper to render images (SVG or URL)
+  // Helper to render SVG images
   const renderImage = (image: string | undefined): string => {
     if (!image) return '';
     if (image.trim().startsWith('<svg')) {
       return `<div class="question-image">${image}</div>`;
-    }
-    if (image.trim().startsWith('http')) {
-      return `<div class="question-image"><img src="${image}" alt="Question illustration" style="max-width: 200px; max-height: 150px; border-radius: 8px;" /></div>`;
     }
     return '';
   };

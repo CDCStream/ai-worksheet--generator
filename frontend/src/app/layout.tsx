@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { ModalProvider } from "@/components/Modal";
 
 const GA_MEASUREMENT_ID = "G-SZW6X77247";
+const GOOGLE_ADS_ID = "AW-778442301";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -76,6 +77,16 @@ export default function RootLayout({
             gtag('config', '${GA_MEASUREMENT_ID}', {
               page_path: window.location.pathname,
             });
+          `}
+        </Script>
+        {/* Google Ads */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads" strategy="afterInteractive">
+          {`
+            gtag('config', '${GOOGLE_ADS_ID}');
           `}
         </Script>
       </head>

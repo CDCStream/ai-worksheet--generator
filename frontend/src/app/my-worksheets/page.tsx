@@ -102,13 +102,13 @@ export default function MyWorksheetsPage() {
     showConfirm(
       'Are you sure you want to delete this worksheet? This action cannot be undone.',
       async () => {
-        try {
-          await deleteWorksheet(id, user?.id);
-          setWorksheets(prev => prev.filter(ws => ws.id !== id));
-        } catch (err) {
+      try {
+        await deleteWorksheet(id, user?.id);
+        setWorksheets(prev => prev.filter(ws => ws.id !== id));
+      } catch (err) {
           showError('Failed to delete worksheet.');
-          console.error(err);
-        }
+        console.error(err);
+      }
       },
       'Delete Worksheet',
       'Delete',
