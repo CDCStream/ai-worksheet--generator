@@ -40,6 +40,17 @@ function detectPlanFromProduct(productId: string): { plan: string; credits: numb
   return productPlans[productId] || null;
 }
 
+// Helper to detect credit pack from Polar product
+function detectCreditPackFromProduct(productId: string): number | null {
+  const creditPacks: Record<string, number> = {
+    'f4b49fe8-8975-4f19-9f54-a49be6d19b25': 40,  // credits_40
+    '5fc143c8-6af1-4bb5-ab18-8350a9919a9c': 80,  // credits_80
+    'ac8db116-617c-4686-afd4-8f0667d1ce83': 200, // credits_200
+    'e9c6ee59-2b45-4c27-b32a-422f75134edd': 400, // credits_400
+  };
+  return creditPacks[productId] || null;
+}
+
 export const POST = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
   onPayload: async (payload) => {
@@ -85,15 +96,24 @@ export const POST = Webhooks({
           let plan = metadata?.plan;
           let creditsToAdd = parseInt(metadata?.credits || "0");
 
-          // Check product_id to detect subscription type
-          const productId = (payload.data as Record<string, unknown>).product_id as string;
-          if (productId && !plan) {
-            const detected = detectPlanFromProduct(productId);
-            if (detected) {
-              plan = detected.plan;
-              creditsToAdd = detected.credits;
+          // Check product_id to detect subscription type or credit pack
+          const productId = (payload.data as Record<string, unknown>).productId as string;
+          if (productId && !plan && !productType) {
+            // First check if it's a subscription
+            const detectedPlan = detectPlanFromProduct(productId);
+            if (detectedPlan) {
+              plan = detectedPlan.plan;
+              creditsToAdd = detectedPlan.credits;
               productType = "subscription";
               console.log("🔍 Detected plan from product:", plan, "credits:", creditsToAdd);
+            } else {
+              // Check if it's a credit pack
+              const detectedCredits = detectCreditPackFromProduct(productId);
+              if (detectedCredits) {
+                creditsToAdd = detectedCredits;
+                productType = "credits";
+                console.log("🔍 Detected credit pack from product:", creditsToAdd, "credits");
+              }
             }
           }
 
@@ -245,7 +265,7 @@ export const POST = Webhooks({
         }
 
         // Try to detect plan from product
-        const orderProductId = (payload.data as Record<string, unknown>).product_id as string;
+        const orderProductId = (payload.data as Record<string, unknown>).productId as string;
         if (!orderPlan && orderProductId) {
           const detected = detectPlanFromProduct(orderProductId);
           if (detected) {
