@@ -263,10 +263,6 @@ export default function Home() {
                 <span className="font-bold text-lg">100+ countries</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-2xl">🤝</span>
-                <span className="font-bold text-lg">250,000+ teachers helped</span>
-              </div>
-              <div className="flex items-center gap-3">
                 <span className="text-2xl">💬</span>
                 <span className="font-bold text-lg">40 languages</span>
               </div>
