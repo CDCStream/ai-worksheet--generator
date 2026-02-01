@@ -38,3 +38,4 @@ export function trackPurchase(value: number = 1.0, transactionId?: string) {
     console.log('📊 Purchase conversion tracked', { value, transactionId });
   }
 }
+

@@ -319,6 +319,34 @@ function generatePrintReadyHtml(worksheet: Worksheet, content: 'questions' | 'an
       font-weight: 600;
       margin-left: 8px;
     }
+    .student-info {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+      padding: 15px 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .student-field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .field-label {
+      font-weight: 600;
+      color: #374151;
+      font-size: 11pt;
+    }
+    .field-line {
+      display: inline-block;
+      width: 200px;
+      border-bottom: 1.5px solid #333;
+      height: 20px;
+    }
+    .field-line.short {
+      width: 120px;
+    }
     .footer {
       margin-top: 30px;
       text-align: center;
@@ -342,6 +370,17 @@ function generatePrintReadyHtml(worksheet: Worksheet, content: 'questions' | 'an
       <span class="badge">${worksheet.subject}</span>
       <span class="badge">Grade ${worksheet.grade_level}</span>
       <span class="badge">${worksheet.difficulty}</span>
+    </div>
+  </div>
+
+  <div class="student-info">
+    <div class="student-field">
+      <span class="field-label">Name:</span>
+      <span class="field-line"></span>
+    </div>
+    <div class="student-field">
+      <span class="field-label">Date:</span>
+      <span class="field-line short"></span>
     </div>
   </div>
 
@@ -1041,6 +1080,34 @@ function generatePrintableHtml(worksheet: Worksheet, content: 'questions' | 'ans
             padding-top: 20px;
             border-top: 1px solid #eee;
         }
+        .student-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .student-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .field-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+        .field-line {
+            display: inline-block;
+            width: 200px;
+            border-bottom: 1.5px solid #333;
+            height: 20px;
+        }
+        .field-line.short {
+            width: 120px;
+        }
         @media print {
             body { padding: 20px; }
             .answer-key { page-break-before: always; }
@@ -1056,6 +1123,17 @@ function generatePrintableHtml(worksheet: Worksheet, content: 'questions' | 'ans
             <span class="info-item">📊 Grade ${worksheet.grade_level}</span>
             <span class="info-item">⚡ ${worksheet.difficulty}</span>
             <span class="info-item">🌐 ${worksheet.language.toUpperCase()}</span>
+        </div>
+    </div>
+
+    <div class="student-info">
+        <div class="student-field">
+            <span class="field-label">Name:</span>
+            <span class="field-line"></span>
+        </div>
+        <div class="student-field">
+            <span class="field-label">Date:</span>
+            <span class="field-line short"></span>
         </div>
     </div>
 
