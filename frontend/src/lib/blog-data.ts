@@ -71,7 +71,7 @@ export const blogPosts: BlogPost[] = [
     title: "The Ultimate 2026 Guide to Bloom's Taxonomy Question Stems for All 6 Levels",
     excerpt: "Master the art of asking the right questions with this comprehensive guide to Bloom's Taxonomy question stems. From Remember to Create, unlock deeper learning in your classroom.",
     image: 'https://cdn.outrank.so/05be71ab-637b-405a-8f9d-dac9cacc048d/74b24661-f1c9-4c03-bc4e-92cd6ac587c3/bloom\'s-taxonomy-question-stems-classroom-study.jpg',
-    content: \`
+    content: `
       <p>Are your classroom questions truly challenging students to think, or just to remember? The difference often lies in moving beyond simple recall to engage higher-order thinking skills, a journey mapped out perfectly by Bloom's Taxonomy. This foundational framework is a teacher's most powerful tool for designing instruction that builds deep comprehension, fosters critical analysis, and ultimately sparks genuine creativity.</p>
 
       <p>Knowing the six levels of the taxonomy is one thing; having the right language to prompt each level of thinking is another. That's where a well-curated set of <strong>Bloom's Taxonomy question stems</strong> becomes indispensable. These powerful, open-ended prompts are the building blocks for creating dynamic lesson plans, engaging class discussions, and crafting meaningful assessments that accurately measure student learning.</p>
@@ -180,7 +180,7 @@ export const blogPosts: BlogPost[] = [
       <blockquote><strong>Key Takeaway:</strong> The goal is not simply to ask "harder" questions. The goal is to ask the right questions at the right time to build durable understanding.</blockquote>
 
       <p>Ready to supercharge your lesson planning? Let <strong>Makos.ai</strong> instantly generate worksheets, quizzes, and lesson plans filled with differentiated Bloom's Taxonomy question stems tailored to your exact curriculum.</p>
-    \`,
+    `,
     date: '2026-01-31',
     author: 'Makos.ai Team',
     tags: ["Bloom's Taxonomy", 'Teaching Tips', 'Question Stems', 'Higher-Order Thinking', 'Education']
